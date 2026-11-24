@@ -1,0 +1,17 @@
+[Unit]
+Description=Kelompok 8 service probes and labeled demo metrics
+After=network.target mariadb.service named.service
+
+[Service]
+Type=oneshot
+User=k8-monitor
+Group=k8-monitor
+ExecStart=/usr/bin/python3 /usr/local/lib/kelompok8/collect.py
+TimeoutStartSec=50
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/kelompok8
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+UMask=0022

@@ -1,0 +1,10 @@
+[defaults]
+inventory = /etc/jalatantra/automation-inventory.yml
+host_key_checking = True
+retry_files_enabled = False
+interpreter_python = /usr/bin/python3
+local_tmp = /run/jalatantra-worker/local
+remote_tmp = /tmp/jalatantra-ansible
+
+[privilege_escalation]
+become = True

@@ -1,0 +1,29 @@
+{
+  "device": {{ inventory_hostname | to_json }},
+  "address": {{ (ansible_host | default('127.0.0.1')) | to_json }},
+  "role": {{ (group_names | reject('equalto', 'all') | join(' / ')) | to_json }},
+  "services": {
+    "OpenSSH": "ssh",
+{% if 'dns' in group_names %}
+    "Bind9": "named",
+{% endif %}
+{% if 'database' in group_names %}
+    "MariaDB": "mariadb",
+{% endif %}
+{% if 'monitoring' in group_names %}
+    "Prometheus": "prometheus",
+    "Grafana": "grafana-server",
+{% endif %}
+    "Node Exporter": "prometheus-node-exporter"
+  },
+  "dns": {% if 'dns' in group_names %}{
+    "server": {{ (bind9_listen_ipv4 | first) | to_json }},
+    "query": {{ ('ns1.' ~ project_domain) | to_json }},
+    "expected": {{ (bind9_zone_records | selectattr('name', 'equalto', 'ns1') | map(attribute='address') | first) | to_json }}
+  }{% else %}null{% endif %},
+  "database": {{ ('database' in group_names) | to_json }},
+  "demo_enabled": {{ (k8_demo_enabled | default(true) and inventory_hostname == (groups['monitoring'] | first)) | to_json }},
+  "demo_devices": "/var/lib/kelompok8/demo-devices.json",
+  "demo_state": "/var/lib/kelompok8/demo-state.json",
+  "output": "/var/lib/kelompok8/metrics/kelompok8.prom"
+}

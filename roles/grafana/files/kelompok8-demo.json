@@ -1,0 +1,2473 @@
+{
+  "id": null,
+  "uid": "kelompok8-demo",
+  "title": "Kelompok 8 / Demo Lab [SIMULASI]",
+  "description": "Konsol native Grafana. Dummy persisten, terpisah dari metrik nyata.",
+  "schemaVersion": 41,
+  "version": 1,
+  "editable": true,
+  "style": "dark",
+  "timezone": "browser",
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "refresh": "15s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "15s",
+      "30s",
+      "1m",
+      "5m"
+    ],
+    "hidden": false
+  },
+  "tags": [
+    "kelompok8",
+    "native-grafana",
+    "simulasi"
+  ],
+  "annotations": {
+    "list": []
+  },
+  "links": [
+    {
+      "title": "Demo Lab",
+      "type": "link",
+      "icon": "dashboard",
+      "url": "/d/kelompok8-demo",
+      "targetBlank": false,
+      "includeVars": false,
+      "keepTime": false
+    },
+    {
+      "title": "Operasional",
+      "type": "link",
+      "icon": "dashboard",
+      "url": "/d/kelompok8-overview",
+      "targetBlank": false,
+      "includeVars": false,
+      "keepTime": false
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "device",
+        "label": "Perangkat demo",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PBFA97CFB590B2093"
+        },
+        "query": {
+          "query": "label_values(k8_demo_inventory_info, device)",
+          "refId": "StandardVariableQuery"
+        },
+        "definition": "label_values(k8_demo_inventory_info, device)",
+        "refresh": 2,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": [],
+        "regex": "",
+        "hide": 0,
+        "skipUrlSync": false,
+        "description": "Inventaris dummy via label_values; label lama mungkin tetap muncul, tetapi seluruh panel memvalidasi timestamp dan exporter."
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 4
+      },
+      "pluginVersion": "13.3.1",
+      "transparent": false,
+      "options": {
+        "mode": "html",
+        "content": "<div style=\"background:#101B2D;border-left:5px solid #FBBF24;padding:12px 20px;color:#E2E8F0;\">\n  <p style=\"margin:0 0 5px;font-size:12px;letter-spacing:2px;color:#FBBF24;\"><strong>SIMULASI</strong> &nbsp; / &nbsp; KELOMPOK 8</p>\n  <h2 style=\"margin:0 0 6px;font-size:25px;color:#F8FAFC;\">K8 / Demo Lab</h2>\n  <p style=\"margin:0;font-size:13px;\">Data dummy tersimpan. Bukan kondisi perangkat nyata.</p>\n</div>",
+        "code": {
+          "language": "html"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Total node",
+      "description": "Jumlah inventaris demo terpilih dengan sampel valid.\n\nTidak ada data berarti sampel tidak tersedia, pilihan tidak cocok, atau validasi kesegaran gagal; bukan kondisi sehat. NaN hanya menjadi penanda kosong, bukan nilai nol.",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 4,
+        "h": 4
+      },
+      "pluginVersion": "13.3.1",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Tidak ada data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#38BDF8"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#38BDF8",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "(count((k8_demo_inventory_info{source=\"demo\",job=\"node_exporter\",device=~\"$device\"}) and on(instance) (((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) < 60) and ((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) >= 0)) and on(instance) (up{job=\"node_exporter\"} == 1))) or on() vector(0 / 0)",
+          "format": "time_series",
+          "valueWithRefId": false,
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Online",
+      "description": "Perangkat demo aktif; nilai nol hanya dari pengamatan valid.\n\nTidak ada data berarti sampel tidak tersedia, pilihan tidak cocok, atau validasi kesegaran gagal; bukan kondisi sehat. NaN hanya menjadi penanda kosong, bukan nilai nol.",
+      "gridPos": {
+        "x": 4,
+        "y": 4,
+        "w": 4,
+        "h": 4
+      },
+      "pluginVersion": "13.3.1",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Tidak ada data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#2DD4BF"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#2DD4BF",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "(sum(((k8_demo_device_up{source=\"demo\",job=\"node_exporter\",device=~\"$device\"}) and on(instance) (((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) < 60) and ((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) >= 0)) and on(instance) (up{job=\"node_exporter\"} == 1)) == bool 1)) or on() vector(0 / 0)",
+          "format": "time_series",
+          "valueWithRefId": false,
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Offline",
+      "description": "Skenario offline tetap tampil di inventaris dan status, tidak diubah menjadi nol CPU.\n\nTidak ada data berarti sampel tidak tersedia, pilihan tidak cocok, atau validasi kesegaran gagal; bukan kondisi sehat. NaN hanya menjadi penanda kosong, bukan nilai nol.",
+      "gridPos": {
+        "x": 8,
+        "y": 4,
+        "w": 4,
+        "h": 4
+      },
+      "pluginVersion": "13.3.1",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Tidak ada data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#2DD4BF",
+                "value": null
+              },
+              {
+                "color": "#F87171",
+                "value": 1
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "(sum(((k8_demo_device_up{source=\"demo\",job=\"node_exporter\",device=~\"$device\"}) and on(instance) (((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) < 60) and ((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) >= 0)) and on(instance) (up{job=\"node_exporter\"} == 1)) == bool 0)) or on() vector(0 / 0)",
+          "format": "time_series",
+          "valueWithRefId": false,
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "CPU rata-rata",
+      "description": "Rerata CPU perangkat demo aktif dalam pilihan; bukan data host nyata.\n\nTidak ada data berarti sampel tidak tersedia, pilihan tidak cocok, atau validasi kesegaran gagal; bukan kondisi sehat. NaN hanya menjadi penanda kosong, bukan nilai nol.",
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 4,
+        "h": 4
+      },
+      "pluginVersion": "13.3.1",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "Tidak ada data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#38BDF8",
+                "value": null
+              },
+              {
+                "color": "#FBBF24",
+                "value": 80
+              },
+              {
+                "color": "#F87171",
+                "value": 95
+              }
+            ]
+          },
+          "decimals": 1,
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "(avg((k8_demo_cpu_percent{source=\"demo\",job=\"node_exporter\",device=~\"$device\"}) and on(instance) (((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) < 60) and ((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) >= 0)) and on(instance) (up{job=\"node_exporter\"} == 1) and on(instance,device) (k8_demo_device_up{source=\"demo\",job=\"node_exporter\",device=~\"$device\"} == 1))) or on() vector(0 / 0)",
+          "format": "time_series",
+          "valueWithRefId": false,
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Memori",
+      "description": "Rerata penggunaan memori perangkat demo aktif dalam pilihan.\n\nTidak ada data berarti sampel tidak tersedia, pilihan tidak cocok, atau validasi kesegaran gagal; bukan kondisi sehat. NaN hanya menjadi penanda kosong, bukan nilai nol.",
+      "gridPos": {
+        "x": 16,
+        "y": 4,
+        "w": 4,
+        "h": 4
+      },
+      "pluginVersion": "13.3.1",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "Tidak ada data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#A78BFA",
+                "value": null
+              },
+              {
+                "color": "#FBBF24",
+                "value": 80
+              },
+              {
+                "color": "#F87171",
+                "value": 95
+              }
+            ]
+          },
+          "decimals": 1,
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "(avg((k8_demo_memory_percent{source=\"demo\",job=\"node_exporter\",device=~\"$device\"}) and on(instance) (((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) < 60) and ((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) >= 0)) and on(instance) (up{job=\"node_exporter\"} == 1) and on(instance,device) (k8_demo_device_up{source=\"demo\",job=\"node_exporter\",device=~\"$device\"} == 1))) or on() vector(0 / 0)",
+          "format": "time_series",
+          "valueWithRefId": false,
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Usia data",
+      "description": "Usia sampel terlama untuk perangkat terpilih. Sampel ≥60 detik, timestamp masa depan, atau exporter down menjadi Tidak ada data.\n\nTidak ada data berarti sampel tidak tersedia, pilihan tidak cocok, atau validasi kesegaran gagal; bukan kondisi sehat. NaN hanya menjadi penanda kosong, bukan nilai nol.",
+      "gridPos": {
+        "x": 20,
+        "y": 4,
+        "w": 4,
+        "h": 4
+      },
+      "pluginVersion": "13.3.1",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "Tidak ada data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#2DD4BF",
+                "value": null
+              },
+              {
+                "color": "#FBBF24",
+                "value": 30
+              },
+              {
+                "color": "#F87171",
+                "value": 50
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "(max(((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"})) and on(instance) (((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) < 60) and ((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) >= 0)) and on(instance) (up{job=\"node_exporter\"} == 1) and on(instance) ((k8_demo_inventory_info{source=\"demo\",job=\"node_exporter\",device=~\"$device\"}) and on(instance) (((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) < 60) and ((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) >= 0)) and on(instance) (up{job=\"node_exporter\"} == 1)))) or on() vector(0 / 0)",
+          "format": "time_series",
+          "valueWithRefId": false,
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "CPU / tren per perangkat",
+      "description": "Pilihan perangkat berlaku pada seluruh deret. Celah data tidak disambung atau diisi nol.\n\nTidak ada data berarti sampel tidak tersedia, pilihan tidak cocok, atau validasi kesegaran gagal; bukan kondisi sehat. NaN hanya menjadi penanda kosong, bukan nilai nol.",
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 7
+      },
+      "pluginVersion": "13.3.1",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "Tidak ada data",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#38BDF8",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 1,
+          "min": 0,
+          "max": 100,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 12,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": false,
+            "insertNulls": false,
+            "axisPlacement": "auto",
+            "axisColorMode": "text",
+            "axisBorderShow": false,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "(k8_demo_cpu_percent{source=\"demo\",job=\"node_exporter\",device=~\"$device\"}) and on(instance) (((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) < 60) and ((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) >= 0)) and on(instance) (up{job=\"node_exporter\"} == 1) and on(instance,device) (k8_demo_device_up{source=\"demo\",job=\"node_exporter\",device=~\"$device\"} == 1)",
+          "format": "time_series",
+          "valueWithRefId": false,
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{device}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc",
+          "hideZeros": false
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Memori / tren per perangkat",
+      "description": "Memori terpakai dalam persen. Tidak ada interpolasi melintasi sampel yang hilang.\n\nTidak ada data berarti sampel tidak tersedia, pilihan tidak cocok, atau validasi kesegaran gagal; bukan kondisi sehat. NaN hanya menjadi penanda kosong, bukan nilai nol.",
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 7
+      },
+      "pluginVersion": "13.3.1",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "Tidak ada data",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#A78BFA",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 1,
+          "min": 0,
+          "max": 100,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 12,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": false,
+            "insertNulls": false,
+            "axisPlacement": "auto",
+            "axisColorMode": "text",
+            "axisBorderShow": false,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "(k8_demo_memory_percent{source=\"demo\",job=\"node_exporter\",device=~\"$device\"}) and on(instance) (((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) < 60) and ((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) >= 0)) and on(instance) (up{job=\"node_exporter\"} == 1) and on(instance,device) (k8_demo_device_up{source=\"demo\",job=\"node_exporter\",device=~\"$device\"} == 1)",
+          "format": "time_series",
+          "valueWithRefId": false,
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{device}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc",
+          "hideZeros": false
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "table",
+      "title": "Layanan / status terkonfigurasi",
+      "description": "SIMULASI: status layanan skenario, bukan proses nyata.\n\nTidak ada data berarti sampel tidak tersedia, pilihan tidak cocok, atau validasi kesegaran gagal; bukan kondisi sehat. NaN hanya menjadi penanda kosong, bukan nilai nol.",
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 12,
+        "h": 7
+      },
+      "pluginVersion": "13.3.1",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Tidak ada data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            },
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "BERHENTI",
+                  "color": "#F87171",
+                  "index": 0
+                },
+                "1": {
+                  "text": "AKTIF",
+                  "color": "#2DD4BF",
+                  "index": 1
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#F87171",
+                "value": null
+              },
+              {
+                "color": "#2DD4BF",
+                "value": 1
+              }
+            ]
+          },
+          "decimals": 0,
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Status"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 150
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "((k8_demo_service_up{source=\"demo\",job=\"node_exporter\",device=~\"$device\"}) and on(instance) (((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) < 60) and ((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) >= 0)) and on(instance) (up{job=\"node_exporter\"} == 1)) or on() vector(0 / 0)",
+          "format": "table",
+          "valueWithRefId": true,
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "device",
+                "service",
+                "Value",
+                "Value #A"
+              ]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": {
+              "device": 0,
+              "service": 1,
+              "Value": 2,
+              "Value #A": 3
+            },
+            "renameByName": {
+              "device": "Perangkat",
+              "service": "Layanan",
+              "Value": "Status",
+              "Value #A": "Status"
+            }
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "enablePagination": false,
+        "footer": {
+          "show": false
+        },
+        "sortBy": [
+          {
+            "displayName": "Perangkat",
+            "desc": false
+          }
+        ]
+      }
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Jaringan / masuk & keluar",
+      "description": "Laju byte/detik menggunakan $__rate_interval; perlu ≥2 sampel counter. Tidak ada laju palsu sebelum cukup sampel atau saat perangkat tidak tersedia.\n\nTidak ada data berarti sampel tidak tersedia, pilihan tidak cocok, atau validasi kesegaran gagal; bukan kondisi sehat. NaN hanya menjadi penanda kosong, bukan nilai nol.",
+      "gridPos": {
+        "x": 12,
+        "y": 15,
+        "w": 12,
+        "h": 7
+      },
+      "pluginVersion": "13.3.1",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "noValue": "Tidak ada data",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#2DD4BF",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 1,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 12,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": false,
+            "insertNulls": false,
+            "axisPlacement": "auto",
+            "axisColorMode": "text",
+            "axisBorderShow": false,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "(rate(k8_demo_network_receive_bytes_total{source=\"demo\",job=\"node_exporter\",device=~\"$device\"}[$__rate_interval])) and on(instance) (((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) < 60) and ((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) >= 0)) and on(instance) (up{job=\"node_exporter\"} == 1) and on(instance,device) (k8_demo_device_up{source=\"demo\",job=\"node_exporter\",device=~\"$device\"} == 1)",
+          "format": "time_series",
+          "valueWithRefId": false,
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{device}} · masuk",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "(rate(k8_demo_network_transmit_bytes_total{source=\"demo\",job=\"node_exporter\",device=~\"$device\"}[$__rate_interval])) and on(instance) (((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) < 60) and ((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) >= 0)) and on(instance) (up{job=\"node_exporter\"} == 1) and on(instance,device) (k8_demo_device_up{source=\"demo\",job=\"node_exporter\",device=~\"$device\"} == 1)",
+          "format": "time_series",
+          "valueWithRefId": false,
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{device}} · keluar",
+          "refId": "B"
+        }
+      ],
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc",
+          "hideZeros": false
+        }
+      }
+    },
+    {
+      "id": 12,
+      "type": "table",
+      "title": "Inventaris / perangkat dummy persisten",
+      "description": "Inventaris SIMULASI. Perangkat offline tetap tercatat selama collector demo segar. Alamat bukan tujuan koneksi atau tombol kontrol.\n\nTidak ada data berarti sampel tidak tersedia, pilihan tidak cocok, atau validasi kesegaran gagal; bukan kondisi sehat. NaN hanya menjadi penanda kosong, bukan nilai nol.",
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 14,
+        "h": 8
+      },
+      "pluginVersion": "13.3.1",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Tidak ada data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            },
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "OFFLINE",
+                  "color": "#F87171",
+                  "index": 0
+                },
+                "1": {
+                  "text": "AKTIF",
+                  "color": "#2DD4BF",
+                  "index": 1
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#F87171",
+                "value": null
+              },
+              {
+                "color": "#2DD4BF",
+                "value": 1
+              }
+            ]
+          },
+          "decimals": 0,
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Status"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 150
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "((k8_demo_inventory_info{source=\"demo\",job=\"node_exporter\",device=~\"$device\"} * on(instance,device) group_left() k8_demo_device_up{source=\"demo\",job=\"node_exporter\",device=~\"$device\"}) and on(instance) (((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) < 60) and ((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) >= 0)) and on(instance) (up{job=\"node_exporter\"} == 1)) or on() vector(0 / 0)",
+          "format": "table",
+          "valueWithRefId": true,
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "device",
+                "role",
+                "address",
+                "site",
+                "Value",
+                "Value #A"
+              ]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": {
+              "device": 0,
+              "role": 1,
+              "address": 2,
+              "site": 3,
+              "Value": 4,
+              "Value #A": 5
+            },
+            "renameByName": {
+              "device": "Perangkat",
+              "role": "Peran",
+              "address": "Alamat skenario",
+              "site": "Lokasi",
+              "Value": "Status",
+              "Value #A": "Status"
+            }
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "enablePagination": false,
+        "footer": {
+          "show": false
+        },
+        "sortBy": [
+          {
+            "displayName": "Perangkat",
+            "desc": false
+          }
+        ]
+      }
+    },
+    {
+      "id": 13,
+      "type": "table",
+      "title": "Isu / skenario yang sedang terlihat",
+      "description": "Isu dummy mengikuti pilihan perangkat. backup01 memiliki peringatan disk; lab-offline01 offline. Tabel kosong tidak menyimpulkan semua layanan sehat.\n\nTidak ada data berarti sampel tidak tersedia, pilihan tidak cocok, atau validasi kesegaran gagal; bukan kondisi sehat. NaN hanya menjadi penanda kosong, bukan nilai nol.",
+      "gridPos": {
+        "x": 14,
+        "y": 22,
+        "w": 10,
+        "h": 8
+      },
+      "pluginVersion": "13.3.1",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Tidak ada data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#FBBF24"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            },
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "SIMULASI",
+                  "color": "#FBBF24"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#FBBF24",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0,
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Sumber"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 150
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Prioritas"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "WARNING": {
+                        "text": "PERINGATAN",
+                        "color": "#FBBF24"
+                      },
+                      "CRITICAL": {
+                        "text": "KRITIS",
+                        "color": "#F87171"
+                      },
+                      "INFO": {
+                        "text": "INFO",
+                        "color": "#38BDF8"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "((k8_demo_issue_info{source=\"demo\",job=\"node_exporter\",device=~\"$device\"}) and on(instance) (((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) < 60) and ((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) >= 0)) and on(instance) (up{job=\"node_exporter\"} == 1)) or on() vector(0 / 0)",
+          "format": "table",
+          "valueWithRefId": true,
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "device",
+                "severity",
+                "issue",
+                "Value",
+                "Value #A"
+              ]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": {
+              "device": 0,
+              "severity": 1,
+              "issue": 2,
+              "Value": 3,
+              "Value #A": 4
+            },
+            "renameByName": {
+              "device": "Perangkat",
+              "severity": "Prioritas",
+              "issue": "Isu",
+              "Value": "Sumber",
+              "Value #A": "Sumber"
+            }
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "enablePagination": false,
+        "footer": {
+          "show": false
+        },
+        "sortBy": [
+          {
+            "displayName": "Perangkat",
+            "desc": false
+          }
+        ]
+      }
+    },
+    {
+      "id": 14,
+      "type": "bargauge",
+      "title": "Disk / kapasitas terpakai",
+      "description": "Amber ≥80%, merah ≥95%. Nilai disk dummy; backup01 adalah skenario peringatan.\n\nTidak ada data berarti sampel tidak tersedia, pilihan tidak cocok, atau validasi kesegaran gagal; bukan kondisi sehat. NaN hanya menjadi penanda kosong, bukan nilai nol.",
+      "gridPos": {
+        "x": 0,
+        "y": 30,
+        "w": 8,
+        "h": 7
+      },
+      "pluginVersion": "13.3.1",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "Tidak ada data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#2DD4BF",
+                "value": null
+              },
+              {
+                "color": "#FBBF24",
+                "value": 80
+              },
+              {
+                "color": "#F87171",
+                "value": 95
+              }
+            ]
+          },
+          "decimals": 1,
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "((k8_demo_disk_percent{source=\"demo\",job=\"node_exporter\",device=~\"$device\"}) and on(instance) (((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) < 60) and ((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) >= 0)) and on(instance) (up{job=\"node_exporter\"} == 1) and on(instance,device) (k8_demo_device_up{source=\"demo\",job=\"node_exporter\",device=~\"$device\"} == 1)) or on() vector(0 / 0)",
+          "format": "time_series",
+          "valueWithRefId": false,
+          "instant": true,
+          "range": false,
+          "legendFormat": "{{device}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "valueMode": "color",
+        "namePlacement": "left",
+        "showUnfilled": true,
+        "sizing": "auto",
+        "minVizHeight": 18,
+        "maxVizHeight": 34
+      }
+    },
+    {
+      "id": 15,
+      "type": "bargauge",
+      "title": "Uptime / perangkat aktif",
+      "description": "Durasi sejak boot; hanya perangkat terpilih yang aktif. SIMULASI, bukan usia host nyata.\n\nTidak ada data berarti sampel tidak tersedia, pilihan tidak cocok, atau validasi kesegaran gagal; bukan kondisi sehat. NaN hanya menjadi penanda kosong, bukan nilai nol.",
+      "gridPos": {
+        "x": 8,
+        "y": 30,
+        "w": 8,
+        "h": 7
+      },
+      "pluginVersion": "13.3.1",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "Tidak ada data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#38BDF8"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#38BDF8",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "((k8_demo_uptime_seconds{source=\"demo\",job=\"node_exporter\",device=~\"$device\"}) and on(instance) (((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) < 60) and ((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) >= 0)) and on(instance) (up{job=\"node_exporter\"} == 1) and on(instance,device) (k8_demo_device_up{source=\"demo\",job=\"node_exporter\",device=~\"$device\"} == 1)) or on() vector(0 / 0)",
+          "format": "time_series",
+          "valueWithRefId": false,
+          "instant": true,
+          "range": false,
+          "legendFormat": "{{device}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "valueMode": "color",
+        "namePlacement": "left",
+        "showUnfilled": true,
+        "sizing": "auto",
+        "minVizHeight": 18,
+        "maxVizHeight": 34
+      }
+    },
+    {
+      "id": 16,
+      "type": "timeseries",
+      "title": "DNS / latensi skenario",
+      "description": "Latensi DNS dummy dalam milidetik; bukan hasil resolusi nyata.\n\nTidak ada data berarti sampel tidak tersedia, pilihan tidak cocok, atau validasi kesegaran gagal; bukan kondisi sehat. NaN hanya menjadi penanda kosong, bukan nilai nol.",
+      "gridPos": {
+        "x": 16,
+        "y": 30,
+        "w": 8,
+        "h": 7
+      },
+      "pluginVersion": "13.3.1",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "noValue": "Tidak ada data",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#38BDF8",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 1,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 12,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": false,
+            "insertNulls": false,
+            "axisPlacement": "auto",
+            "axisColorMode": "text",
+            "axisBorderShow": false,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "(1000 * k8_demo_dns_duration_seconds{source=\"demo\",job=\"node_exporter\",device=~\"$device\"}) and on(instance) (((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) < 60) and ((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) >= 0)) and on(instance) (up{job=\"node_exporter\"} == 1) and on(instance,device) (k8_demo_device_up{source=\"demo\",job=\"node_exporter\",device=~\"$device\"} == 1)",
+          "format": "time_series",
+          "valueWithRefId": false,
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{device}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc",
+          "hideZeros": false
+        }
+      }
+    },
+    {
+      "id": 17,
+      "type": "timeseries",
+      "title": "MariaDB / kueri per detik",
+      "description": "Counter Questions menjadi rate menggunakan $__rate_interval; perlu ≥2 sampel. Beban database adalah skenario dummy.\n\nTidak ada data berarti sampel tidak tersedia, pilihan tidak cocok, atau validasi kesegaran gagal; bukan kondisi sehat. NaN hanya menjadi penanda kosong, bukan nilai nol.",
+      "gridPos": {
+        "x": 0,
+        "y": 37,
+        "w": 8,
+        "h": 7
+      },
+      "pluginVersion": "13.3.1",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "noValue": "Tidak ada data",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#2DD4BF",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 1,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 12,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": false,
+            "insertNulls": false,
+            "axisPlacement": "auto",
+            "axisColorMode": "text",
+            "axisBorderShow": false,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "(rate(k8_demo_mariadb_queries_total{source=\"demo\",job=\"node_exporter\",device=~\"$device\"}[$__rate_interval])) and on(instance) (((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) < 60) and ((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) >= 0)) and on(instance) (up{job=\"node_exporter\"} == 1) and on(instance,device) (k8_demo_device_up{source=\"demo\",job=\"node_exporter\",device=~\"$device\"} == 1)",
+          "format": "time_series",
+          "valueWithRefId": false,
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{device}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc",
+          "hideZeros": false
+        }
+      }
+    },
+    {
+      "id": 18,
+      "type": "timeseries",
+      "title": "MariaDB / koneksi aktif",
+      "description": "Jumlah koneksi, bukan persentase. SIMULASI.\n\nTidak ada data berarti sampel tidak tersedia, pilihan tidak cocok, atau validasi kesegaran gagal; bukan kondisi sehat. NaN hanya menjadi penanda kosong, bukan nilai nol.",
+      "gridPos": {
+        "x": 8,
+        "y": 37,
+        "w": 8,
+        "h": 7
+      },
+      "pluginVersion": "13.3.1",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Tidak ada data",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#A78BFA",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 12,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": false,
+            "insertNulls": false,
+            "axisPlacement": "auto",
+            "axisColorMode": "text",
+            "axisBorderShow": false,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "(k8_demo_mariadb_connections{source=\"demo\",job=\"node_exporter\",device=~\"$device\"}) and on(instance) (((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) < 60) and ((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) >= 0)) and on(instance) (up{job=\"node_exporter\"} == 1) and on(instance,device) (k8_demo_device_up{source=\"demo\",job=\"node_exporter\",device=~\"$device\"} == 1)",
+          "format": "time_series",
+          "valueWithRefId": false,
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{device}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc",
+          "hideZeros": false
+        }
+      }
+    },
+    {
+      "id": 19,
+      "type": "status-history",
+      "title": "Perangkat / riwayat status sampel",
+      "description": "Riwayat k8_demo_device_up, bukan riwayat pekerjaan Ansible. Merah = offline; celah = sampel tidak valid/tidak tersedia.\n\nTidak ada data berarti sampel tidak tersedia, pilihan tidak cocok, atau validasi kesegaran gagal; bukan kondisi sehat. NaN hanya menjadi penanda kosong, bukan nilai nol.",
+      "gridPos": {
+        "x": 16,
+        "y": 37,
+        "w": 8,
+        "h": 7
+      },
+      "pluginVersion": "13.3.1",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Tidak ada data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            },
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "OFFLINE",
+                  "color": "#F87171",
+                  "index": 0
+                },
+                "1": {
+                  "text": "AKTIF",
+                  "color": "#2DD4BF",
+                  "index": 1
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#F87171",
+                "value": null
+              },
+              {
+                "color": "#2DD4BF",
+                "value": 1
+              }
+            ]
+          },
+          "decimals": 0,
+          "custom": {
+            "lineWidth": 0,
+            "fillOpacity": 85,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "(k8_demo_device_up{source=\"demo\",job=\"node_exporter\",device=~\"$device\"}) and on(instance) (((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) < 60) and ((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) >= 0)) and on(instance) (up{job=\"node_exporter\"} == 1)",
+          "format": "time_series",
+          "valueWithRefId": false,
+          "instant": false,
+          "range": true,
+          "legendFormat": "{{device}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showValue": "never",
+        "rowHeight": 0.75,
+        "colWidth": 0.85,
+        "legend": {
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 20,
+      "type": "text",
+      "title": "Topologi konseptual / SIMULASI",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 44,
+        "w": 12,
+        "h": 7
+      },
+      "pluginVersion": "13.3.1",
+      "transparent": false,
+      "options": {
+        "mode": "html",
+        "content": "<div style=\"padding:8px 12px;color:#CBD5E1;\">\n  <p style=\"color:#FBBF24;margin:0 0 14px;\"><strong>SIMULASI PERMANEN — bukan peta jaringan hasil discovery</strong></p>\n  <table style=\"width:100%;border-collapse:collapse;font-size:14px;\">\n    <tbody>\n      <tr><th style=\"text-align:left;padding:8px;color:#38BDF8;\">Lapisan layanan</th><td>Bind9 / DNS &nbsp; · &nbsp; MariaDB / data</td></tr>\n      <tr><th style=\"text-align:left;padding:8px;color:#2DD4BF;\">Observabilitas</th><td>Collector demo → Node Exporter → Prometheus → Grafana</td></tr>\n      <tr><th style=\"text-align:left;padding:8px;color:#FBBF24;\">Skenario disk</th><td>backup01 · peringatan kapasitas</td></tr>\n      <tr><th style=\"text-align:left;padding:8px;color:#F87171;\">Skenario offline</th><td>lab-offline01 · CPU, memori, trafik tidak tersedia</td></tr>\n    </tbody>\n  </table>\n  <p style=\"font-size:12px;color:#94A3B8;\">Konteks statis untuk delapan perangkat persisten; tabel inventaris dan layanan mengikuti filter. Tidak ada kontrol eksekusi di dashboard.</p>\n</div>",
+        "code": {
+          "language": "html"
+        }
+      }
+    },
+    {
+      "id": 21,
+      "type": "table",
+      "title": "Skenario / cakupan & kesegaran",
+      "description": "Usia sampel collector diproyeksikan ke inventaris terpilih; bukan timestamp pengukuran independen per perangkat. Hanya sampel 0–59 detik dan exporter up yang tampil.\n\nTidak ada data berarti sampel tidak tersedia, pilihan tidak cocok, atau validasi kesegaran gagal; bukan kondisi sehat. NaN hanya menjadi penanda kosong, bukan nilai nol.",
+      "gridPos": {
+        "x": 12,
+        "y": 44,
+        "w": 12,
+        "h": 7
+      },
+      "pluginVersion": "13.3.1",
+      "transparent": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "Tidak ada data",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#2DD4BF"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Tidak ada data",
+                  "color": "#94A3B8"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#2DD4BF",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0,
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Usia sampel"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 150
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "((k8_demo_inventory_info{source=\"demo\",job=\"node_exporter\",device=~\"$device\"} * on(instance) group_left() (time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"})) and on(instance) (((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) < 60) and ((time() - k8_sample_timestamp_seconds{source=\"demo\",job=\"node_exporter\"}) >= 0)) and on(instance) (up{job=\"node_exporter\"} == 1)) or on() vector(0 / 0)",
+          "format": "table",
+          "valueWithRefId": true,
+          "instant": true,
+          "range": false,
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "device",
+                "site",
+                "scenario",
+                "Value",
+                "Value #A"
+              ]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": {
+              "device": 0,
+              "site": 1,
+              "scenario": 2,
+              "Value": 3,
+              "Value #A": 4
+            },
+            "renameByName": {
+              "device": "Perangkat",
+              "site": "Lokasi",
+              "scenario": "Skenario",
+              "Value": "Usia sampel",
+              "Value #A": "Usia sampel"
+            }
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "enablePagination": false,
+        "footer": {
+          "show": false
+        },
+        "sortBy": [
+          {
+            "displayName": "Perangkat",
+            "desc": false
+          }
+        ]
+      }
+    },
+    {
+      "id": 22,
+      "type": "text",
+      "title": "Tentang konsol / observasi, bukan eksekusi",
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 51,
+        "w": 24,
+        "h": 4
+      },
+      "pluginVersion": "13.3.1",
+      "transparent": false,
+      "options": {
+        "mode": "html",
+        "content": "<div style=\"padding:6px 12px;color:#94A3B8;font-size:13px;\">\n  <p style=\"margin:0 0 8px;color:#CBD5E1;\"><strong>SIMULASI: semua nilai berasal dari source=demo.</strong> &nbsp; Bind9 / MariaDB → collector / Node Exporter → Prometheus → Grafana.</p>\n  <p style=\"margin:0 0 8px;\">SSH dan Ansible melakukan provisioning melalui terminal. Dashboard ini tidak menjalankan perintah, deployment, atau menyajikan riwayat eksekusi otomasi. Status systemd Grafana bukan pemeriksaan API Grafana.</p>\n  <p style=\"margin:0;\">Dropdown label_values dapat menyimpan label lama; panel tetap menolak sampel kedaluwarsa. Rate perlu ≥2 sampel. <strong>Tidak ada data ≠ sehat.</strong></p>\n</div>",
+        "code": {
+          "language": "html"
+        }
+      }
+    }
+  ]
+}

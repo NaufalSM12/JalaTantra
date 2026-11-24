@@ -1,0 +1,18 @@
+[server]
+http_addr = {{ grafana_listen_address }}
+http_port = {{ grafana_http_port }}
+domain = {{ grafana_domain | default('localhost') }}
+root_url = %(protocol)s://%(domain)s:%(http_port)s/
+
+[security]
+admin_user = {{ grafana_admin_user }}
+
+[auth.anonymous]
+enabled = false
+
+[users]
+allow_sign_up = false
+default_theme = dark
+
+[dashboards]
+default_home_dashboard_path = /var/lib/grafana/dashboards/kelompok8/{{ 'demo' if k8_demo_enabled | default(true) else 'overview' }}.json

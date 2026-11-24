@@ -1,0 +1,8 @@
+{{ {
+  'enabled': jalatantra_ai_enabled | bool,
+  'base_url': jalatantra_ai_base_url,
+  'model': jalatantra_ai_model,
+  'api_key': jalatantra_ai_api_key,
+  'timeout': 20,
+  'max_tokens': 600
+} | to_nice_json }}

@@ -1,0 +1,8 @@
+options {
+    directory "/var/cache/bind";
+    listen-on port 53 { {{ bind9_listen_ipv4 | join('; ') }}; };
+    listen-on-v6 { none; };
+    allow-query { {{ bind9_allow_query | join('; ') }}; };
+    recursion no;
+    dnssec-validation auto;
+};

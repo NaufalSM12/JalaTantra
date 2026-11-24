@@ -1,0 +1,64 @@
+---
+- name: Validate MariaDB credentials
+  ansible.builtin.assert:
+    that:
+      - mariadb_app_password != 'CHANGE_ME_WITH_ANSIBLE_VAULT'
+    fail_msg: Set mariadb_app_password in Ansible Vault before deploying MariaDB.
+
+- name: Install MariaDB packages
+  ansible.builtin.apt:
+    name:
+      - mariadb-server
+      - mariadb-client
+      - python3-pymysql
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Ensure MariaDB is enabled and running
+  ansible.builtin.service:
+    name: mariadb
+    state: started
+    enabled: true
+
+- name: Configure MariaDB bind address
+  ansible.builtin.template:
+    src: 60-kelompok8.cnf.j2
+    dest: /etc/mysql/mariadb.conf.d/60-kelompok8.cnf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart MariaDB
+
+- name: Apply MariaDB configuration changes before database tasks
+  ansible.builtin.meta: flush_handlers
+
+- name: Create project database
+  community.mysql.mysql_db:
+    name: "{{ mariadb_database_name }}"
+    state: present
+    login_unix_socket: /run/mysqld/mysqld.sock
+    login_password: "{{ mariadb_login_password if mariadb_login_password | length > 0 else omit }}"
+  no_log: true
+
+- name: Create project database user
+  community.mysql.mysql_user:
+    name: "{{ mariadb_app_user }}"
+    password: "{{ mariadb_app_password }}"
+    priv: "{{ mariadb_database_name }}.*:ALL"
+    host: localhost
+    state: present
+    login_unix_socket: /run/mysqld/mysqld.sock
+    login_password: "{{ mariadb_login_password if mariadb_login_password | length > 0 else omit }}"
+  no_log: true
+
+- name: Set root password through local socket when supplied
+  community.mysql.mysql_user:
+    name: root
+    password: "{{ mariadb_root_password }}"
+    host: localhost
+    state: present
+    login_unix_socket: /run/mysqld/mysqld.sock
+    login_password: "{{ mariadb_login_password if mariadb_login_password | length > 0 else omit }}"
+  no_log: true
+  when: mariadb_root_password != 'CHANGE_ME_WITH_ANSIBLE_VAULT'

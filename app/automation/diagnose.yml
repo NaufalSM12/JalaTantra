@@ -1,0 +1,32 @@
+- name: Read-only diagnosis of an approved service
+  hosts: managed
+  gather_facts: false
+  tasks:
+    - name: Validate service allowlist
+      ansible.builtin.assert:
+        that:
+          - service_unit in ['named', 'mariadb', 'ssh', 'prometheus', 'grafana-server', 'prometheus-node-exporter']
+    - name: Read systemd unit state
+      ansible.builtin.command:
+        argv: [/usr/bin/systemctl, status, "{{ service_unit }}"]
+      changed_when: false
+      failed_when: false
+      register: diagnose_status
+    - name: Read last unit log lines
+      ansible.builtin.command:
+        argv: [/usr/bin/journalctl, -u, "{{ service_unit }}", --no-pager, -n, "40"]
+      changed_when: false
+      failed_when: false
+      register: diagnose_journal
+    - name: Read disk usage
+      ansible.builtin.command:
+        argv: [/usr/bin/df, -h, /]
+      changed_when: false
+      failed_when: false
+      register: diagnose_disk
+    - name: Read memory pressure
+      ansible.builtin.command:
+        argv: [/usr/bin/free, -m]
+      changed_when: false
+      failed_when: false
+      register: diagnose_memory

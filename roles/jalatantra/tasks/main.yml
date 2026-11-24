@@ -1,0 +1,178 @@
+---
+- name: Validate local application deployment
+  ansible.builtin.assert:
+    that:
+      - "'database' in group_names"
+      - jalatantra_listen_address in ['127.0.0.1', '::1'] or jalatantra_cookie_secure | bool
+    fail_msg: JalaTantra requires MariaDB on the same host and HTTPS secure cookies for non-loopback access.
+
+- name: Install application runtime
+  ansible.builtin.apt:
+    name: [python3-flask, python3-werkzeug, python3-pymysql, python3-dnspython, gunicorn, ansible-core]
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create unprivileged application account
+  ansible.builtin.user:
+    name: jalatantra
+    system: true
+    create_home: false
+    shell: /usr/sbin/nologin
+
+- name: Create root-owned application directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: jalatantra
+    mode: "0750"
+  loop: [/opt/jalatantra, /etc/jalatantra]
+
+- name: Generate private worker database credential once
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/python3
+      - -c
+      - "import os,secrets; fd=os.open('/etc/jalatantra/worker-password',os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600); os.write(fd,secrets.token_urlsafe(48).encode()); os.close(fd)"
+    creates: /etc/jalatantra/worker-password
+  no_log: true
+
+- name: Read private worker database credential
+  ansible.builtin.slurp:
+    src: /etc/jalatantra/worker-password
+  register: jalatantra_worker_secret
+  no_log: true
+
+- name: Create application database
+  community.mysql.mysql_db:
+    name: jalatantra
+    encoding: utf8mb4
+    collation: utf8mb4_unicode_ci
+    state: present
+    login_unix_socket: /run/mysqld/mysqld.sock
+    login_password: "{{ mariadb_login_password if mariadb_login_password | length > 0 else omit }}"
+  no_log: true
+
+- name: Create socket-authenticated web database account
+  community.mysql.mysql_user:
+    name: jalatantra
+    host: localhost
+    plugin: unix_socket
+    priv: "jalatantra.*:SELECT,INSERT,UPDATE,DELETE"
+    state: present
+    login_unix_socket: /run/mysqld/mysqld.sock
+    login_password: "{{ mariadb_login_password if mariadb_login_password | length > 0 else omit }}"
+  no_log: true
+
+- name: Create separate worker database account
+  community.mysql.mysql_user:
+    name: jalatantra_worker
+    host: localhost
+    password: "{{ jalatantra_worker_secret.content | b64decode | trim }}"
+    priv: "jalatantra.*:SELECT,INSERT,UPDATE,DELETE"
+    state: present
+    login_unix_socket: /run/mysqld/mysqld.sock
+    login_password: "{{ mariadb_login_password if mariadb_login_password | length > 0 else omit }}"
+  no_log: true
+
+- name: Install root-owned application source
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../app/{{ item }}"
+    dest: "/opt/jalatantra/{{ item }}"
+    owner: root
+    group: jalatantra
+    mode: "0640"
+  loop: [db.py, schema.sql, policy.py, bootstrap.py, server.py, security.py, metrics.py, worker.py, ai.py]
+  notify: Restart JalaTantra services
+
+- name: Install root-owned static assets and fixed playbooks
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../app/{{ item }}/"
+    dest: "/opt/jalatantra/{{ item }}/"
+    owner: root
+    group: jalatantra
+    mode: "0640"
+    directory_mode: "0750"
+  loop: [static, automation]
+  notify: Restart JalaTantra services
+
+- name: Install application and private worker settings
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "/etc/jalatantra/{{ item.dest }}.json"
+    owner: root
+    group: "{{ 'root' if item.dest != 'config' else 'jalatantra' }}"
+    mode: "{{ '0600' if item.dest != 'config' else '0640' }}"
+  loop:
+    - { src: config.json.j2, dest: config }
+    - { src: config.json.j2, dest: worker }
+  no_log: true
+  notify: Restart JalaTantra services
+
+- name: Inspect optional file-based AI settings
+  ansible.builtin.stat:
+    path: /etc/jalatantra/ai.json
+  register: jalatantra_ai_file
+
+- name: Install provisioned AI settings without replacing an existing UI configuration
+  ansible.builtin.template:
+    src: ai.json.j2
+    dest: /etc/jalatantra/ai.json
+    owner: root
+    group: root
+    mode: "0600"
+  when: not jalatantra_ai_file.stat.exists or jalatantra_ai_base_url | length > 0
+  no_log: true
+  notify: Restart JalaTantra services
+
+- name: Install trusted automation configuration
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/jalatantra/{{ item }}"
+    owner: root
+    group: root
+    mode: "0600"
+  loop: [automation-inventory.yml, ansible.cfg]
+  notify: Restart JalaTantra services
+
+- name: Initialize schema and persistent inventory
+  ansible.builtin.command:
+    argv: [/usr/bin/python3, /opt/jalatantra/bootstrap.py]
+    stdin: "{{ {'mariadb_login_password': mariadb_login_password, 'jalatantra_admin_password': jalatantra_admin_password} | to_json }}"
+  environment:
+    PYTHONDONTWRITEBYTECODE: "1"
+  register: jalatantra_bootstrap
+  changed_when: (jalatantra_bootstrap.stdout | from_json).seeded | int > 0
+  no_log: true
+
+- name: Install JalaTantra service units
+  ansible.builtin.template:
+    src: "{{ item }}.service.j2"
+    dest: "/etc/systemd/system/{{ item }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: [jalatantra, jalatantra-worker]
+  notify: Restart JalaTantra services
+
+- name: Start and enable JalaTantra services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+    daemon_reload: true
+  loop: [jalatantra, jalatantra-worker]
+
+- name: Apply application changes before readiness check
+  ansible.builtin.meta: flush_handlers
+
+- name: Verify JalaTantra database readiness
+  ansible.builtin.uri:
+    url: "http://{{ '[' ~ jalatantra_listen_address ~ ']' if ':' in jalatantra_listen_address else jalatantra_listen_address }}:{{ jalatantra_http_port }}/api/health"
+    return_content: true
+  register: jalatantra_health
+  until: jalatantra_health.status | default(0) == 200
+  retries: 20
+  delay: 2
+  when: not ansible_check_mode

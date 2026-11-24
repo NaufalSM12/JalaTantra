@@ -1,0 +1,29 @@
+[Unit]
+Description=JalaTantra operations portal
+After=network.target mariadb.service
+Requires=mariadb.service
+
+[Service]
+Type=simple
+User=jalatantra
+Group=jalatantra
+WorkingDirectory=/opt/jalatantra
+Environment=JALATANTRA_CONFIG=/etc/jalatantra/config.json
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/gunicorn --workers 2 --threads 4 --timeout 90 --bind {{ jalatantra_listen_address }}:{{ jalatantra_http_port }} --access-logfile - --error-logfile - server:app
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

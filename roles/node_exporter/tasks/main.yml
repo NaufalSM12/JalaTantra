@@ -1,0 +1,116 @@
+---
+- name: Install Node Exporter and DNS probe library
+  ansible.builtin.apt:
+    name:
+      - prometheus-node-exporter
+      - python3-dnspython
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create local monitoring identity
+  ansible.builtin.user:
+    name: k8-monitor
+    system: true
+    create_home: false
+    shell: /usr/sbin/nologin
+
+- name: Create collector application and configuration directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - /usr/local/lib/kelompok8
+    - /etc/kelompok8
+
+- name: Create persistent monitoring state and metrics directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: k8-monitor
+    group: k8-monitor
+    mode: "0755"
+  loop:
+    - /var/lib/kelompok8
+    - /var/lib/kelompok8/metrics
+
+- name: Install metrics collector
+  ansible.builtin.copy:
+    src: collect.py
+    dest: /usr/local/lib/kelompok8/collect.py
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Refresh Kelompok 8 metrics
+
+- name: Seed persistent demo inventory without overwriting changes
+  ansible.builtin.copy:
+    src: demo-devices.json
+    dest: /var/lib/kelompok8/demo-devices.json
+    owner: k8-monitor
+    group: k8-monitor
+    mode: "0644"
+    force: false
+
+- name: Configure real service probes and separate demo mode
+  ansible.builtin.template:
+    src: collector.json.j2
+    dest: /etc/kelompok8/collector.json
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Refresh Kelompok 8 metrics
+
+- name: Create socket-authenticated MariaDB metrics account
+  community.mysql.mysql_user:
+    name: k8-monitor
+    host: localhost
+    plugin: unix_socket
+    state: present
+    login_unix_socket: /run/mysqld/mysqld.sock
+    login_password: "{{ mariadb_login_password if mariadb_login_password | length > 0 else (mariadb_root_password if mariadb_root_password != 'CHANGE_ME_WITH_ANSIBLE_VAULT' else omit) }}"
+  when: "'database' in group_names"
+  no_log: true
+
+- name: Install collector service and timer
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - kelompok8-collector.service
+    - kelompok8-collector.timer
+  register: k8_collector_units
+  notify: Refresh Kelompok 8 metrics
+
+- name: Load collector systemd units
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: k8_collector_units is changed
+
+- name: Enable persistent metrics collection
+  ansible.builtin.systemd:
+    name: kelompok8-collector.timer
+    enabled: true
+    state: started
+
+- name: Configure Node Exporter listener and textfile collector
+  ansible.builtin.copy:
+    dest: /etc/default/prometheus-node-exporter
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      ARGS="--web.listen-address={{ node_exporter_listen_address }} --collector.textfile.directory=/var/lib/kelompok8/metrics"
+  notify: Restart Node Exporter
+
+- name: Ensure Node Exporter is enabled and running
+  ansible.builtin.service:
+    name: prometheus-node-exporter
+    state: started
+    enabled: true

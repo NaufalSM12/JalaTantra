@@ -1,0 +1,17 @@
+{{ {
+  'db_name': 'jalatantra',
+  'db_socket': '/run/mysqld/mysqld.sock',
+  'allowed_networks': jalatantra_allowed_networks,
+  'managed_hosts': jalatantra_managed_hosts,
+  'prometheus_url': jalatantra_prometheus_url,
+  'cookie_secure': jalatantra_cookie_secure,
+  'dns_probe_name': jalatantra_dns_probe_name,
+  'automation_dir': '/opt/jalatantra/automation',
+  'automation_inventory': '/etc/jalatantra/automation-inventory.yml',
+  'ansible_config': '/etc/jalatantra/ansible.cfg',
+  'runner_temp': '/run/jalatantra-worker',
+  'ai_config': '/etc/jalatantra/ai.json',
+  'check_retention_days': 30,
+  'job_retention_days': 180,
+  'audit_retention_days': 400
+} | combine({'db_password': jalatantra_worker_secret.content | b64decode | trim} if item.dest == 'worker' else {}) | to_nice_json }}

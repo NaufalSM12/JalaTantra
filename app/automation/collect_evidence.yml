@@ -1,0 +1,35 @@
+---
+- name: Collect bounded read-only host evidence
+  hosts: managed
+  gather_facts: false
+  tasks:
+    - name: Read failed systemd units
+      ansible.builtin.command:
+        argv: [/usr/bin/systemctl, --failed, --no-legend]
+      changed_when: false
+      failed_when: false
+      register: evidence_failed_units
+    - name: Read disk capacity and inode usage
+      ansible.builtin.command:
+        argv: [/usr/bin/df, -h, -i, /]
+      changed_when: false
+      failed_when: false
+      register: evidence_disk
+    - name: Read memory and load summary
+      ansible.builtin.command:
+        argv: [/usr/bin/free, -m]
+      changed_when: false
+      failed_when: false
+      register: evidence_memory
+    - name: Read system uptime
+      ansible.builtin.command:
+        argv: [/usr/bin/uptime]
+      changed_when: false
+      failed_when: false
+      register: evidence_uptime
+    - name: Read listening TCP sockets
+      ansible.builtin.command:
+        argv: [/usr/bin/ss, -ltn]
+      changed_when: false
+      failed_when: false
+      register: evidence_listeners

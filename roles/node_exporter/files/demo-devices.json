@@ -1,0 +1,10 @@
+[
+  {"device":"edge-gw01","role":"Gateway","address":"192.0.2.1","site":"Lab Jakarta","scenario":"Normal","up":1,"cpu":24,"memory":38,"disk":22,"rx_bps":6200000,"tx_bps":4100000,"uptime_days":31,"services":{"OpenSSH":1}},
+  {"device":"core-sw01","role":"Core network","address":"192.0.2.2","site":"Lab Jakarta","scenario":"Normal","up":1,"cpu":18,"memory":27,"disk":15,"rx_bps":9200000,"tx_bps":7800000,"uptime_days":62,"services":{"OpenSSH":1}},
+  {"device":"dns01","role":"DNS / Bind9","address":"192.0.2.10","site":"Lab Jakarta","scenario":"Normal","up":1,"cpu":13,"memory":32,"disk":28,"rx_bps":420000,"tx_bps":380000,"uptime_days":14,"services":{"Bind9":1,"OpenSSH":1}},
+  {"device":"db01","role":"Database / MariaDB","address":"192.0.2.30","site":"Lab Jakarta","scenario":"Beban database","up":1,"cpu":58,"memory":68,"disk":61,"rx_bps":2600000,"tx_bps":1900000,"uptime_days":21,"services":{"MariaDB":1,"OpenSSH":1}},
+  {"device":"monitor01","role":"Observability","address":"192.0.2.20","site":"Lab Jakarta","scenario":"Normal","up":1,"cpu":35,"memory":52,"disk":43,"rx_bps":1800000,"tx_bps":900000,"uptime_days":7,"services":{"Grafana":1,"Prometheus":1,"Node Exporter":1,"OpenSSH":1}},
+  {"device":"app01","role":"Application host","address":"192.0.2.40","site":"Lab Surabaya","scenario":"Normal","up":1,"cpu":43,"memory":57,"disk":49,"rx_bps":3200000,"tx_bps":5600000,"uptime_days":11,"services":{"OpenSSH":1}},
+  {"device":"backup01","role":"Backup host","address":"192.0.2.50","site":"Lab Surabaya","scenario":"Disk warning","up":1,"cpu":21,"memory":41,"disk":87,"rx_bps":1500000,"tx_bps":280000,"uptime_days":45,"services":{"OpenSSH":1},"issues":[{"severity":"WARNING","issue":"Simulasi: kapasitas disk 87%, rencanakan pembersihan"}]},
+  {"device":"lab-offline01","role":"Lab standby","address":"192.0.2.60","site":"Lab Surabaya","scenario":"Offline terencana","up":0,"cpu":0,"memory":0,"disk":0,"rx_bps":0,"tx_bps":0,"uptime_days":0,"services":{"OpenSSH":0},"issues":[{"severity":"CRITICAL","issue":"Simulasi: perangkat offline untuk demo penanganan insiden"}]}
+]

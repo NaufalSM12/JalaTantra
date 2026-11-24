@@ -1,0 +1,10 @@
+---
+- name: Restart Node Exporter
+  ansible.builtin.service:
+    name: prometheus-node-exporter
+    state: restarted
+
+- name: Refresh Kelompok 8 metrics
+  ansible.builtin.systemd:
+    name: kelompok8-collector.service
+    state: started

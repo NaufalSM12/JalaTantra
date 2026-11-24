@@ -1,0 +1,21 @@
+---
+jalatantra_listen_address: 127.0.0.1
+jalatantra_http_port: 3080
+jalatantra_admin_password: ""
+jalatantra_cookie_secure: false
+jalatantra_allowed_networks:
+  - 127.0.0.0/8
+jalatantra_managed_hosts:
+  127.0.0.1: local
+jalatantra_automation_hosts:
+  local:
+    ansible_host: 127.0.0.1
+    ansible_connection: local
+    ansible_python_interpreter: /usr/bin/python3
+jalatantra_dns_probe_name: "ns1.{{ project_domain }}"
+jalatantra_prometheus_url: "http://127.0.0.1:9090"
+# Optional read-only AI advisor. Leave disabled to run without any AI provider.
+jalatantra_ai_enabled: false
+jalatantra_ai_base_url: ""
+jalatantra_ai_model: ""
+jalatantra_ai_api_key: ""

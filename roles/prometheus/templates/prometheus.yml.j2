@@ -1,0 +1,15 @@
+global:
+  scrape_interval: {{ prometheus_scrape_interval }}
+  evaluation_interval: {{ prometheus_scrape_interval }}
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["{{ prometheus_self_target }}"]
+
+  - job_name: node_exporter
+    static_configs:
+      - targets:
+{% for target in prometheus_node_exporter_targets %}
+          - "{{ target }}"
+{% endfor %}

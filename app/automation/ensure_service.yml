@@ -1,0 +1,19 @@
+---
+- name: Ensure an approved service is active
+  hosts: managed
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Validate service allowlist
+      ansible.builtin.assert:
+        that:
+          - service_unit in ['named', 'mariadb', 'ssh', 'prometheus', 'grafana-server', 'prometheus-node-exporter']
+    - name: Ensure approved service is enabled and running
+      ansible.builtin.service:
+        name: "{{ service_unit }}"
+        state: started
+        enabled: true
+    - name: Verify approved service state
+      ansible.builtin.command:
+        argv: [/usr/bin/systemctl, is-active, "{{ service_unit }}"]
+      changed_when: false

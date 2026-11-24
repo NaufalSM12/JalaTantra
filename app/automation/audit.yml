@@ -1,0 +1,11 @@
+---
+- name: Read infrastructure identity
+  hosts: managed
+  gather_facts: false
+  tasks:
+    - name: Verify Ansible connection
+      ansible.builtin.ping:
+    - name: Read operating system identity
+      ansible.builtin.command:
+        argv: [/usr/bin/uname, -srm]
+      changed_when: false

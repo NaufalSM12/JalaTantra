@@ -1,0 +1,41 @@
+all:
+  vars:
+    ansible_user: ubuntu
+    ansible_become: true
+  children:
+    dns:
+      hosts:
+        dns01:
+          ansible_host: 192.168.8.10
+          bind9_listen_ipv4: ["127.0.0.1", "192.168.8.10"]
+          bind9_allow_query: ["127.0.0.1", "192.168.8.0/24"]
+          bind9_zone_records:
+            - { name: ns1, address: 192.168.8.10 }
+            - { name: monitor, address: 192.168.8.20 }
+            - { name: grafana, address: 192.168.8.20 }
+            - { name: db, address: 192.168.8.30 }
+    database:
+      hosts:
+        db01:
+          ansible_host: 192.168.8.30
+          mariadb_bind_address: 192.168.8.30
+    monitoring:
+      hosts:
+        monitor01:
+          ansible_host: 192.168.8.20
+          prometheus_listen_address: 0.0.0.0:9090
+          node_exporter_listen_address: 192.168.8.20:9100
+          prometheus_node_exporter_targets:
+            - 192.168.8.20:9100
+            - 192.168.8.10:9100
+            - 192.168.8.30:9100
+          grafana_listen_address: 0.0.0.0
+          grafana_datasource_url: http://127.0.0.1:9090
+    exporters:
+      hosts:
+        dns01:
+          ansible_host: 192.168.8.10
+          node_exporter_listen_address: 192.168.8.10:9100
+        db01:
+          ansible_host: 192.168.8.30
+          node_exporter_listen_address: 192.168.8.30:9100

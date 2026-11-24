@@ -1,0 +1,23 @@
+---
+- name: Apply infrastructure configuration
+  hosts: all
+  become: true
+  roles:
+    - role: bind9
+      tags: [bind9]
+      when: "'dns' in group_names"
+    - role: mariadb
+      tags: [mariadb]
+      when: "'database' in group_names"
+    - role: node_exporter
+      tags: [node_exporter]
+      when: "'exporters' in group_names or 'monitoring' in group_names"
+    - role: prometheus
+      tags: [prometheus]
+      when: "'monitoring' in group_names"
+    - role: grafana
+      tags: [grafana]
+      when: "'monitoring' in group_names"
+    - role: jalatantra
+      tags: [jalatantra]
+      when: "'monitoring' in group_names"

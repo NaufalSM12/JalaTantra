@@ -1,0 +1,18 @@
+---
+- name: Reload a narrowly approved service
+  hosts: managed
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Validate reload service allowlist
+      ansible.builtin.assert:
+        that:
+          - service_unit in ['named', 'prometheus']
+    - name: Reload approved service
+      ansible.builtin.service:
+        name: "{{ service_unit }}"
+        state: reloaded
+    - name: Verify approved service state
+      ansible.builtin.command:
+        argv: [/usr/bin/systemctl, is-active, "{{ service_unit }}"]
+      changed_when: false
