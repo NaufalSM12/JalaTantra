@@ -1,496 +1,563 @@
-# Panduan Integrasi JalaTantra ke Server Ubuntu Asli
+# Panduan Deployment JalaTantra dari GitHub ke Ubuntu
 
-Panduan ini membawa JalaTantra dari lingkungan uji lokal (WSL) ke server Ubuntu asli
-alamat `10.33.109.77` — server yang percobaan SSH-nya sebelumnya gagal. Dokumen ini
-menjelaskan penyebab kegagalan tersebut, cara membuka akses yang benar, dua jalur
-deployment, cara mengakses aplikasi dengan aman dari jauh, verifikasi pasca-integrasi,
-pendaftaran perangkat real, serta backup dan rollback.
+Panduan ini memasang JalaTantra pada satu server Ubuntu 24.04 dari repository GitHub:
 
-> Prinsip keselamatan: jangan mengubah apa pun di server sebelum akses SSH dan hak
-> sudo terkonfirmasi. Semua layanan JalaTantra sengaja mengikat loopback; akses dari
-> jauh dilakukan melalui tunnel SSH, bukan membuka port ke jaringan publik.
+```text
+https://github.com/NaufalSM12/JalaTantra.git
+```
 
----
+Semua kode diambil dari branch `main`. Konfigurasi lokal, vault, kata sandi, kunci API,
+dan backup **tidak** disimpan di repository.
 
-## 1. Mengapa SSH sebelumnya gagal
-
-`10.33.109.77` adalah alamat privat (RFC 1918). Alamat seperti ini **tidak dapat
-dirutekan dari internet biasa**; hanya reachable dari dalam jaringan yang sama atau
-melalui VPN yang menjembatani jaringan tersebut. Percobaan `ssh a1-8@10.33.109.77`
-yang gagal hampir pasti terjadi karena tunnel VPN belum aktif saat percobaan,
-sehingga paket tidak pernah mencapai server.
-
-Urutan diagnosis (jalankan dari Windows tempat profil VPN berada):
-
-1. **Aktifkan VPN terlebih dahulu.** Impor profil `.ovpn` yang Anda terima ke
-   OpenVPN GUI (atau klien OpenVPN lain), lalu connect. Jangan menyalin, mengunggah,
-   atau menampilkan isi file profil tersebut ke mana pun — di dalamnya terdapat
-   kunci statis TLS yang bersifat rahasia.
-2. **Verifikasi rute dari Windows:**
-   ```powershell
-   ping 10.33.109.77
-   Test-NetConnection 10.33.109.77 -Port 22
-   ```
-   `TcpTestSucceeded : True` berarti jalur ke SSH terbuka.
-3. **Verifikasi dari WSL (bila akan memakai Jalur A):**
-   ```bash
-   ping -c 3 10.33.109.77
-   ```
-   WSL2 meneruskan trafik melalui Windows; bila Windows reachable tetapi WSL tidak,
-   lihat bagian Troubleshooting (mode jaringan mirrored).
-4. **Coba SSH dengan verbose:**
-   ```bash
-   ssh -v a1-8@10.33.109.77
-   ```
-
-Tabel gejala → penyebab → tindakan:
-
-| Gejala | Penyebab paling mungkin | Tindakan |
-|---|---|---|
-| `Connection timed out` | VPN belum aktif / rute tidak ada | Aktifkan VPN, ulangi langkah 2 |
-| `Connection refused` | sshd tidak berjalan / firewall server | Minta administrator memeriksa `sshd` dan firewall server |
-| `Permission denied (publickey,password)` | Kredensial salah / akun belum diizinkan | Konfirmasi akun dan kata sandi ke administrator; pastikan akun boleh login password |
-| `Host key verification failed` | Kunci host berubah / known_hosts lama | Periksa sidik kunci host ke administrator sebelum menghapus entri known_hosts |
-| `sudo: a password is required` / `not in sudoers` | Akun tanpa hak sudo | Minta administrator menambahkan akun ke grup sudo |
-| Windows reachable, WSL timeout | NAT WSL2 tidak meneruskan rute VPN | Pakai Jalur B, atau aktifkan `networkingMode=mirrored` di `.wslconfig` lalu `wsl --shutdown` |
-
-**Jangan melanjutkan ke deployment bila langkah 2 belum True.** Konfirmasi akses
-adalah prasyarat, bukan opsional.
+> **Prinsip aman:** jalankan pemeriksaan baca-saja lebih dahulu. Portal hanya mengikat
+> `127.0.0.1`; akses jarak jauh dilakukan melalui SSH tunnel. Jangan membuka port
+> aplikasi langsung ke internet.
 
 ---
 
-## 2. Prasyarat akses dan persiapan server
+## 1. Prasyarat server
 
-Setelah SSH berhasil:
-
-1. **Ganti kata sandi awal akun** segera (`passwd`). Kata sandi bawaan yang dibagikan
-   bersama alamat server bukan rahasia lagi.
-2. **Pastikan hak sudo:** `sudo -v`. Bila gagal, minta administrator menambah akun
-   ke grup `sudo`; deployment membutuhkan root.
-3. **Pasang kunci SSH** agar kata sandi tidak diketik berulang dan tidak muncul di
-   argumen proses:
-   ```bash
-   ssh-keygen -t ed25519 -f ~/.ssh/jalatantra_deploy -N ""
-   ssh-copy-id -i ~/.ssh/jalatantra_deploy.pub a1-8@10.33.109.77
-   ```
-4. **Periksa kesehatan paket server** (deployment memakai apt):
-   ```bash
-   sudo dpkg --audit
-   sudo apt-get update
-   ```
-   Bila `dpkg --audit` melaporkan paket terinterupsi: `sudo dpkg --configure -a`
-   lalu `sudo apt-get -f install`.
-5. **Catat kondisi awal** untuk rollback: `systemctl list-units --type=service --state=running`,
-   `df -h`, `free -h`.
-
-Server target adalah Ubuntu dengan systemd dan akses apt yang berfungsi. Seluruh
-kebutuhan perangkat lunak (MariaDB, Prometheus, node_exporter, Grafana, BIND9,
-Flask/Gunicorn, Ansible) dipasang oleh playbook; tidak ada pemasangan manual.
-
----
-
-## 3. Jalur A (direkomendasikan): Ansible push dari WSL
-
-Kontrol tetap di mesin Anda; server hanya menerima koneksi SSH. Repository disalin
-ke filesystem Linux di WSL terlebih dahulu karena direktori `/mnt/e` bersifat
-world-writable dan Ansible mengabaikan `ansible.cfg` di direktori semacam itu.
-
-### 3.1 Salin repository ke WSL
+Masuk ke Ubuntu menggunakan akun yang memiliki `sudo`, lalu verifikasi kondisi dasar:
 
 ```bash
-MSYS_NO_PATHCONV=1 wsl.exe -d Ubuntu -u root -- bash -c \
-  'cp -a "/mnt/e/AMJ-Network infrastruktur automation" /root/jalatantra-src'
+sudo -v
+sudo dpkg --audit
+sudo apt-get update
 ```
 
-### 3.2 Inventory produksi
+Jika `dpkg --audit` melaporkan konfigurasi yang terinterupsi, selesaikan dulu:
 
-Buat `inventory/production.yml` di salinan repository tersebut:
+```bash
+sudo dpkg --configure -a
+sudo apt-get -f install
+sudo apt-get update
+```
+
+Pasang alat untuk mengambil repository dan menjalankan playbook:
+
+```bash
+sudo apt-get install -y git ansible python3-pymysql
+```
+
+Buat direktori kerja dan konfigurasi deployment yang hanya dapat diakses root:
+
+```bash
+sudo install -d -o root -g root -m 0750 /opt/jalatantra-src
+sudo install -d -o root -g root -m 0700 /etc/jalatantra-deploy
+```
+
+---
+
+## 2. Ambil kode dari GitHub
+
+Clone repository untuk pertama kali:
+
+```bash
+sudo git clone --branch main --depth 1 \
+  https://github.com/NaufalSM12/JalaTantra.git \
+  /opt/jalatantra-src
+```
+
+Periksa commit yang sedang dipakai:
+
+```bash
+sudo git -C /opt/jalatantra-src status --short
+sudo git -C /opt/jalatantra-src log -1 --oneline
+```
+
+Hasil `status --short` harus kosong. Jangan mengedit source di `/opt/jalatantra-src`
+untuk menyimpan password atau kunci; semua nilai lokal diletakkan di
+`/etc/jalatantra-deploy`.
+
+Pasang collection Ansible yang diperlukan oleh role MariaDB:
+
+```bash
+sudo ansible-galaxy collection install \
+  -r /opt/jalatantra-src/requirements.yml
+```
+
+---
+
+## 3. Buat inventory lokal di luar repository
+
+Salin inventory bawaan sebagai dasar konfigurasi lokal:
+
+```bash
+sudo cp -a /opt/jalatantra-src/inventory/. /etc/jalatantra-deploy/
+sudo chown -R root:root /etc/jalatantra-deploy
+sudo chmod 0700 /etc/jalatantra-deploy
+sudo chmod 0600 /etc/jalatantra-deploy/group_vars/all.yml
+```
+
+Untuk satu server, gunakan isi berikut pada `/etc/jalatantra-deploy/hosts.yml`:
 
 ```yaml
+---
 all:
-  vars:
-    ansible_user: a1-8
-    ansible_become: true
-    ansible_python_interpreter: /usr/bin/python3
   children:
+    control:
+      hosts:
+        localhost:
+          ansible_connection: local
     dns:
       hosts:
-        prod01: &prod01
-          ansible_host: 10.33.109.77
+        localhost:
     database:
       hosts:
-        prod01: *prod01
+        localhost:
     monitoring:
       hosts:
-        prod01: *prod01
+        localhost:
     exporters:
       hosts:
-        prod01: *prod01
+        localhost:
 ```
 
-Keanggotaan grup menentukan peran yang dipasang: `database` + `monitoring`
-memasang MariaDB, Prometheus, node_exporter, Grafana, dan JalaTantra; `dns`
-menambah BIND9; `exporters` memasang node_exporter. Untuk satu server serba-guna,
-pertahankan keempat grup seperti di atas.
+Buat direktori host vars dan konfigurasi non-rahasia:
 
-### 3.3 Variabel host non-rahasia
+```bash
+sudo install -d -o root -g root -m 0700 \
+  /etc/jalatantra-deploy/host_vars/localhost
+sudo nano /etc/jalatantra-deploy/host_vars/localhost/main.yml
+```
 
-Buat `inventory/host_vars/prod01/main.yml`:
+Isi file tersebut sebagai berikut. Semua listener tetap loopback; nama domain dan
+database dapat diganti sesuai lingkungan server.
 
 ```yaml
+---
 project_domain: jalatantra.test
+project_dns_server_ip: 127.0.0.1
+project_timezone: Asia/Jakarta
+
+mariadb_bind_address: 127.0.0.1
 mariadb_database_name: jalatantra_ops
-mariadb_app_user: ops_app
+mariadb_app_user: jalatantra_ops
+
+bind9_listen_ipv4:
+  - 127.0.0.1
+bind9_allow_query:
+  - 127.0.0.1
 bind9_zone_records:
   - { name: ns1, address: 127.0.0.1 }
   - { name: monitor, address: 127.0.0.1 }
   - { name: grafana, address: 127.0.0.1 }
   - { name: db, address: 127.0.0.1 }
+
+prometheus_listen_address: 127.0.0.1:9090
+prometheus_self_target: 127.0.0.1:9090
 prometheus_node_exporter_targets:
   - 127.0.0.1:9100
+
+node_exporter_listen_address: 127.0.0.1:9100
+grafana_listen_address: 127.0.0.1
+grafana_http_port: 3000
+
+jalatantra_listen_address: 127.0.0.1
+jalatantra_http_port: 3080
+jalatantra_cookie_secure: false
 jalatantra_allowed_networks:
   - 127.0.0.0/8
 jalatantra_managed_hosts:
   127.0.0.1: local
+jalatantra_automation_hosts:
+  local:
+    ansible_host: 127.0.0.1
+    ansible_connection: local
+    ansible_python_interpreter: /usr/bin/python3
+jalatantra_dns_probe_name: ns1.jalatantra.test
+jalatantra_prometheus_url: http://127.0.0.1:9090
 ```
 
-Semua alamat tetap loopback sesuai default aman. Nama domain dan database di atas
-adalah identitas netral untuk lingkungan produksi Anda.
-
-### 3.4 Rahasia dengan Ansible Vault
+Atur izin file:
 
 ```bash
-cd /root/jalatantra-src
-ansible-vault create inventory/host_vars/prod01/vault.yml
+sudo chown root:root /etc/jalatantra-deploy/host_vars/localhost/main.yml
+sudo chmod 0600 /etc/jalatantra-deploy/host_vars/localhost/main.yml
 ```
 
-Isi (ganti setiap `<...>` dengan nilai baru yang kuat; jangan memakai ulang kata
-sandi lingkungan uji lokal):
+---
+
+## 4. Buat vault untuk semua rahasia
+
+Buat vault lokal. Perintah ini meminta passphrase vault secara interaktif; jangan
+menyimpan passphrase tersebut di file plaintext.
+
+```bash
+sudo ansible-vault create \
+  /etc/jalatantra-deploy/host_vars/localhost/vault.yml
+```
+
+Masukkan YAML berikut lalu ganti setiap nilai dengan kata sandi baru yang kuat:
 
 ```yaml
-ansible_become_pass: <kata sandi sudo akun a1-8>
-mariadb_login_password: ""          # instalasi baru; isi kata sandi root saat ini pada run ulang
-mariadb_root_password: <baru, kuat>
-mariadb_app_password: <baru, kuat>
-grafana_admin_password: <baru, kuat>
-jalatantra_admin_password: <baru, minimal 12 karakter>
+---
+mariadb_login_password: ""
+mariadb_root_password: "GANTI_DENGAN_PASSWORD_ROOT_MARIADB_KUAT"
+mariadb_app_password: "GANTI_DENGAN_PASSWORD_APLIKASI_MARIADB_KUAT"
+grafana_admin_password: "GANTI_DENGAN_PASSWORD_ADMIN_GRAFANA_KUAT"
+jalatantra_admin_password: "GANTI_DENGAN_PASSWORD_ADMIN_JALATANTRA_MINIMAL_12_KARAKTER"
 ```
 
-`mariadb_login_password` kosong hanya valid pada instalasi pertama (root MariaDB
-masih tanpa kata sandi). Setelah run pertama, root MariaDB memakai
-`mariadb_root_password`; perbarui nilai `mariadb_login_password` di vault untuk
-run berikutnya.
+Aturan penggunaan:
 
-### 3.5 Jalankan playbook
+- Pada instalasi MariaDB baru, `mariadb_login_password` tetap string kosong.
+- Setelah instalasi pertama berhasil, buka vault lagi dan isi
+  `mariadb_login_password` dengan nilai yang sama seperti `mariadb_root_password`.
+  Ini diperlukan pada deployment berikutnya.
+- Jangan memakai password dari lingkungan uji lokal.
+- Jangan menyalin `vault.yml` ke `/opt/jalatantra-src` dan jangan commit file vault.
+
+Pastikan vault hanya dapat dibaca root:
 
 ```bash
-cd /root/jalatantra-src
-ANSIBLE_ROLES_PATH=/root/jalatantra-src/roles \
-  ansible-playbook -i inventory/production.yml playbooks/site.yml \
-  --limit prod01 --ask-vault-pass
+sudo chown root:root /etc/jalatantra-deploy/host_vars/localhost/vault.yml
+sudo chmod 0600 /etc/jalatantra-deploy/host_vars/localhost/vault.yml
 ```
-
-Tambahkan `--ask-pass` hanya bila kunci SSH belum dipasang (langkah 2.3).
-Untuk memperbarui aplikasi saja tanpa menyentuh layanan lain:
-
-```bash
-ANSIBLE_ROLES_PATH=/root/jalatantra-src/roles \
-  ansible-playbook -i inventory/production.yml playbooks/site.yml \
-  --limit prod01 --tags jalatantra --ask-vault-pass
-```
-
-Playbook bersifat idempoten: run ulang hanya mengubah yang berubah, dan data
-inventaris serta insiden tidak di-seed ulang.
-
-### 3.6 Verifikasi di server
-
-```bash
-ssh -i ~/.ssh/jalatantra_deploy a1-8@10.33.109.77 \
-  'systemctl is-active mariadb prometheus grafana-server prometheus-node-exporter named jalatantra jalatantra-worker; curl -s http://127.0.0.1:3080/api/health'
-```
-
-Harapan: tujuh layanan `active` dan `{"ok":true}`.
 
 ---
 
-## 4. Jalur B (fallback): deployment langsung di server
+## 5. Validasi sebelum deploy
 
-Bila SSH dari WSL tidak dapat menjangkau server (mis. rute VPN hanya ada di
-Windows) tetapi SSH dari Windows berhasil, jalankan deployment di server itu
-sendiri. `tools/deploy_local.py` memang dirancang untuk dijalankan sebagai root
-di host target.
-
-1. Salin repository ke server (dari Git Bash Windows):
-   ```bash
-   scp -r "E:/AMJ-Network infrastruktur automation" a1-8@10.33.109.77:~/jalanantra-src
-   ```
-2. Masuk dan naik ke root:
-   ```bash
-   ssh a1-8@10.33.109.77
-   sudo -i
-   cd ~/jalanantra-src
-   ```
-3. Jalankan deployment interaktif (kata sandi diketik di prompt, tidak pernah
-   menjadi argumen proses):
-   ```bash
-   python3 tools/deploy_local.py
-   ```
-   Prompt meminta: kata sandi root MariaDB saat ini (kosong bila instalasi baru),
-   kata sandi akun aplikasi MariaDB, kata sandi admin Grafana, dan kata sandi awal
-   admin JalaTantra (minimal 12 karakter). Untuk run ulang, isi kata sandi root
-   MariaDB yang sekarang berlaku.
-4. Verifikasi seperti langkah 3.6.
-
-Jalur B memasang stack lengkap karena `site.yml --limit localhost` di server
-berarti server itu sendiri.
-
----
-
-## 5. Mengakses aplikasi dari jauh dengan aman
-
-Portal, Grafana, dan Prometheus mengikat loopback di server. Itu keputusan desain:
-tidak ada port aplikasi yang terbuka ke jaringan. Akses dari mesin Anda memakai
-tunnel SSH (OpenSSH):
+Jalankan syntax check. Perintah ini tidak mengubah server.
 
 ```bash
-ssh -N -L 3080:127.0.0.1:3080 -L 3000:127.0.0.1:3000 -L 9090:127.0.0.1:9090 a1-8@10.33.109.77
+cd /opt/jalatantra-src
+sudo ANSIBLE_ROLES_PATH=/opt/jalatantra-src/roles \
+  ansible-playbook \
+  -i /etc/jalatantra-deploy/hosts.yml \
+  playbooks/site.yml \
+  --limit localhost \
+  --ask-vault-pass \
+  --syntax-check
 ```
 
-Selama tunnel hidup:
+Harapan:
 
-- Aplikasi: http://127.0.0.1:3080
-- Grafana (internal/opsional): http://127.0.0.1:3000
-- Prometheus (internal/opsional): http://127.0.0.1:9090
-
-Login memakai akun `admin` dan kata sandi yang Anda set saat deployment. Segera
-ganti lewat menu profil → Ubah kata sandi.
-
-Jangan mengubah `jalatantra_listen_address` ke `0.0.0.0` untuk "mempermudah akses":
-role menolak bind non-loopback kecuali cookie secure aktif, dan cookie secure
-membutuhkan HTTPS yang belum tersedia di stack ini. Tunnel SSH adalah jalur akses
-jarak yang didukung.
+```text
+playbook: playbooks/site.yml
+```
 
 ---
 
-## 6. Verifikasi pasca-integrasi
+## 6. Deploy awal
 
-1. **Uji integrasi live di server** (skrip ini menyentuh database untuk cleanup,
-   sehingga harus dijalankan di host tempat aplikasi berada):
-   ```bash
-   ssh a1-8@10.33.109.77
-   sudo -i
-   cd ~/jalanantra-src        # atau salin repository bila memakai Jalur A
-   printf '%s' '{"username":"admin","password":"<kata sandi admin>"}' > /run/jt-creds.json
-   chmod 600 /run/jt-creds.json
-   python3 tools/check_jalatantra.py < /run/jt-creds.json
-   rm -f /run/jt-creds.json
-   ```
-   Harapan: sepuluh kelompok uji lulus (lihat Panduan Testing).
-2. **Uji browser dari mesin Anda melalui tunnel** (skrip browser hanya berbicara
-   HTTP ke 127.0.0.1:3080, sehingga tunnel membuatnya berlaku untuk server):
-   ```bash
-   printf '%s' '{"username":"admin","password":"<kata sandi admin>"}' | node tools/browser_jalatantra.mjs
-   ```
-3. **Pemeriksaan monitoring:** `python3 tools/check_local.py` dan
-   `python3 tools/build_dashboards.py --check` di server.
-4. **Jejak audit:** buka halaman Aktivitas di UI; pastikan entri login, pembuatan
-   perangkat, dan persetujuan tercatat dengan aktor dan waktu.
+Jalankan stack lengkap:
+
+```bash
+cd /opt/jalatantra-src
+sudo ANSIBLE_ROLES_PATH=/opt/jalatantra-src/roles \
+  ansible-playbook \
+  -i /etc/jalatantra-deploy/hosts.yml \
+  playbooks/site.yml \
+  --limit localhost \
+  --ask-vault-pass
+```
+
+Deployment memasang dan mengonfigurasi:
+
+- BIND9;
+- MariaDB;
+- Node Exporter;
+- Prometheus;
+- Grafana;
+- portal JalaTantra dan worker otomasi;
+- inventory otomasi root-only;
+- skema database, perangkat Demo persisten, dan akun admin awal.
+
+Playbook bersifat idempoten: menjalankan ulang tidak menghapus perangkat, insiden,
+pekerjaan, pengaturan AI database, atau password admin yang sudah ada.
 
 ---
 
-## 7. Mendaftarkan perangkat real tambahan
+## 7. Verifikasi setelah deploy
 
-Secara default hanya `127.0.0.1` yang boleh diperiksa dan diotomasi. Untuk perangkat
-lain di jaringan server (mis. `10.33.109.20`):
+Periksa status layanan:
 
-1. Perluas kebijakan di `inventory/host_vars/prod01/main.yml`:
-   ```yaml
-   jalatantra_allowed_networks:
-     - 127.0.0.0/8
-     - 10.33.109.0/24
-   jalatantra_managed_hosts:
-     127.0.0.1: local
-     10.33.109.20: node20
-   jalatantra_automation_hosts:
-     local:
-       ansible_host: 127.0.0.1
-       ansible_connection: local
-       ansible_python_interpreter: /usr/bin/python3
-     node20:
-       ansible_host: 10.33.109.20
-       ansible_user: ops
-       ansible_become: true
-       ansible_private_key_file: /etc/jalatantra/automation_key
-       ansible_python_interpreter: /usr/bin/python3
-   prometheus_node_exporter_targets:
-     - 127.0.0.1:9100
-     - 10.33.109.20:9100
-   ```
-2. Siapkan kunci otomasi di server (root-only, di luar home karena sandbox worker
-   memakai `ProtectHome`):
-   ```bash
-   sudo ssh-keygen -t ed25519 -f /etc/jalatantra/automation_key -N ""
-   sudo chmod 600 /etc/jalatantra/automation_key
-   sudo ssh-copy-id -i /etc/jalatantra/automation_key.pub ops@10.33.109.20
-   ```
-3. Pastikan node_exporter di perangkat target mengikat alamat yang dapat dijangkau
-   server (variabel `node_exporter_listen_address` pada host target, mis.
-   `10.33.109.20:9100`), lalu redeploy tag terkait:
-   `--tags jalatantra,prometheus,node_exporter`.
-4. Daftarkan perangkat lewat UI (lingkungan Real, alamat `10.33.109.20`, port
-   exporter 9100). Badge "Target terkelola" muncul hanya bila alamat terdaftar di
-   `managed_hosts`; pemeriksaan tetap dibatasi `allowed_networks`.
-5. Uji baca-saja dahulu: jalankan pemeriksaan layanan dan audit. Aksi
-   `ensure_service`/`restart_service` pada perangkat nyata hanya setelah Anda
-   memahami dampaknya dan melewati persetujuan admin di UI.
+```bash
+sudo systemctl is-active \
+  mariadb prometheus prometheus-node-exporter grafana-server named \
+  jalatantra jalatantra-worker
+```
 
-Alamat di luar cakupan tetap dapat dicatat sebagai inventaris, tetapi pemeriksaan
-dan otomasinya ditolak server — itu perilaku yang diharapkan, bukan kerusakan.
+Harapan: semua layanan menampilkan `active`.
 
-### 7a. Mode auto-approve per perangkat (opsional)
+Periksa endpoint aplikasi dan heartbeat worker:
 
-Secara bawaan setiap perubahan layanan menunggu persetujuan administrator. Untuk
-perangkat yang sudah dipercaya dan ingin dipulihkan cepat (mis. host lab), admin
-dapat mengaktifkan auto-approve per perangkat:
+```bash
+curl -fsS http://127.0.0.1:3080/api/health
+sudo mariadb -u root -p jalatantra -e \
+  "SELECT name, heartbeat_at FROM service_state WHERE name='worker';"
+```
 
-- Di UI: buka detail perangkat → **Auto-approve layanan** → konfirmasi.
-- Batasnya tetap: hanya `ensure_service` dan `restart_service`, hanya layanan yang
-  terdaftar pada perangkat, hanya target terkelola, dan tetap tercatat audit
-  (`auto_approve_changed` + `job_requested … auto-approve perangkat aktif`).
-- Menonaktifkannya mengembalikan gerbang persetujuan untuk permintaan berikutnya.
-  Jika dinonaktifkan saat job masih antre, worker menolak eksekusi (fail-safe).
-- Karena mengubah `updated_at` perangkat, toggle ditolak 409 selama ada pekerjaan aktif.
+Harapan endpoint:
 
-### 7b. Asisten AI read-only (sepenuhnya opsional)
+```json
+{"ok":true}
+```
 
-Aplikasi berjalan penuh tanpa AI. Saat aktif, asisten hanya **membaca** data operasional:
-ringkasan insiden, saran tindak lanjut berdasarkan riwayat, tanya-jawab operasional,
-prioritas insiden, dan handover. Deteksi anomali metrik tetap rule-based di worker; AI
-hanya membantu menjelaskan data dan **tidak pernah** mengeksekusi atau mengubah status.
+Lihat log bila ada masalah:
 
-**Batas lingkungan ketat:** setiap permintaan AI wajib membawa lingkungan yang sedang
-terpilih. Permintaan Real hanya membaca perangkat, insiden, pemeriksaan, dan pekerjaan
-Real; permintaan Demo hanya membaca data sintetis Demo. Permintaan tanpa lingkungan
-ditolak server, bukan diam-diam dialihkan ke Demo.
+```bash
+sudo journalctl -u jalatantra -u jalatantra-worker -n 100 --no-pager
+```
 
-**Cara termudah: dari UI.** Login sebagai admin → menu profil (kanan atas) →
-**Pengaturan AI** → isi penyedia:
+---
 
-| Kolom | Isi |
+## 8. Akses portal dengan SSH tunnel
+
+JalaTantra tidak membuka port HTTP ke jaringan. Dari komputer operator, buat tunnel:
+
+```bash
+ssh -N \
+  -L 3080:127.0.0.1:3080 \
+  -L 3000:127.0.0.1:3000 \
+  -L 9090:127.0.0.1:9090 \
+  USER_SERVER@ALAMAT_SERVER
+```
+
+Buka pada browser lokal:
+
+- Portal JalaTantra: `http://127.0.0.1:3080`
+- Grafana: `http://127.0.0.1:3000`
+- Prometheus: `http://127.0.0.1:9090`
+
+Masuk portal memakai pengguna `admin` dan password `jalatantra_admin_password`
+yang dibuat di vault. Ganti password portal segera melalui menu profil.
+
+Jangan mengubah `jalatantra_listen_address` menjadi `0.0.0.0` tanpa reverse proxy
+HTTPS, cookie secure, firewall, dan penilaian keamanan yang sesuai.
+
+---
+
+## 9. Uji fungsional setelah deploy
+
+Jalankan pemeriksaan monitoring lokal:
+
+```bash
+cd /opt/jalatantra-src
+sudo python3 tools/build_dashboards.py --check
+sudo python3 tools/check_local.py
+```
+
+Jalankan uji unit dan collector:
+
+```bash
+cd /opt/jalatantra-src
+sudo python3 -B -m unittest discover -s tests -p 'test_jalatantra_*.py'
+sudo python3 -B -m unittest discover -s tests -p 'test_collector.py'
+```
+
+Jalankan integrasi live. Simpan credential hanya sementara di `/run`:
+
+```bash
+sudo install -m 0600 /dev/null /run/jalatantra-test-creds.json
+sudo nano /run/jalatantra-test-creds.json
+```
+
+Isi:
+
+```json
+{"username":"admin","password":"PASSWORD_ADMIN_JALATANTRA"}
+```
+
+Lalu jalankan dan hapus file sementara:
+
+```bash
+cd /opt/jalatantra-src
+sudo python3 tools/check_jalatantra.py < /run/jalatantra-test-creds.json
+sudo rm -f /run/jalatantra-test-creds.json
+```
+
+Harapan: seluruh kelompok integrasi lulus. Uji ini memakai perangkat Demo sementara,
+menjalankan audit baca-saja pada localhost, dan tidak mengaktifkan ulang SSH yang mati.
+
+---
+
+## 10. Pembaruan dari GitHub
+
+Selalu periksa source lokal sebelum pembaruan. Jika `git status --short` tidak kosong,
+jangan lanjutkan sebelum perubahan lokal dipahami atau dipindahkan keluar dari source.
+
+```bash
+cd /opt/jalatantra-src
+sudo git status --short
+sudo git fetch origin
+sudo git log --oneline HEAD..origin/main
+sudo git pull --ff-only origin main
+sudo git rev-parse --short HEAD
+```
+
+Setelah source terbaru diambil, jalankan deploy portal saja:
+
+```bash
+cd /opt/jalatantra-src
+sudo ANSIBLE_ROLES_PATH=/opt/jalatantra-src/roles \
+  ansible-playbook \
+  -i /etc/jalatantra-deploy/hosts.yml \
+  playbooks/site.yml \
+  --limit localhost \
+  --tags jalatantra \
+  --ask-vault-pass
+```
+
+Jika update mengubah monitoring, DNS, MariaDB, atau inventory, jalankan playbook tanpa
+`--tags jalatantra` agar seluruh konfigurasi terkait ikut konsisten.
+
+Sesudah pembaruan, ulangi minimal:
+
+```bash
+curl -fsS http://127.0.0.1:3080/api/health
+sudo systemctl is-active jalatantra jalatantra-worker
+```
+
+---
+
+## 11. Menambahkan perangkat Real tambahan
+
+Jangan langsung memasukkan subnet luas. Tambahkan hanya alamat yang memang dikelola
+ke `/etc/jalatantra-deploy/host_vars/localhost/main.yml`.
+
+Contoh satu host `10.20.30.40`:
+
+```yaml
+jalatantra_allowed_networks:
+  - 127.0.0.0/8
+  - 10.20.30.40/32
+
+jalatantra_managed_hosts:
+  127.0.0.1: local
+  10.20.30.40: node40
+
+jalatantra_automation_hosts:
+  local:
+    ansible_host: 127.0.0.1
+    ansible_connection: local
+    ansible_python_interpreter: /usr/bin/python3
+  node40:
+    ansible_host: 10.20.30.40
+    ansible_user: ops
+    ansible_become: true
+    ansible_private_key_file: /etc/jalatantra/automation_key
+    ansible_python_interpreter: /usr/bin/python3
+
+prometheus_node_exporter_targets:
+  - 127.0.0.1:9100
+  - 10.20.30.40:9100
+```
+
+Simpan private key otomasi hanya di server:
+
+```bash
+sudo ssh-keygen -t ed25519 -f /etc/jalatantra/automation_key -N ""
+sudo chmod 0600 /etc/jalatantra/automation_key
+sudo ssh-copy-id -i /etc/jalatantra/automation_key.pub ops@10.20.30.40
+```
+
+Redeploy konfigurasi:
+
+```bash
+cd /opt/jalatantra-src
+sudo ANSIBLE_ROLES_PATH=/opt/jalatantra-src/roles \
+  ansible-playbook \
+  -i /etc/jalatantra-deploy/hosts.yml \
+  playbooks/site.yml \
+  --limit localhost \
+  --ask-vault-pass
+```
+
+Kemudian tambahkan perangkat pada UI sebagai lingkungan **Real**. Urutan aman:
+
+1. pemeriksaan layanan;
+2. audit perangkat;
+3. kumpulkan bukti sistem;
+4. diagnosis layanan;
+5. baru pertimbangkan `ensure_service`, `reload_service`, atau `restart_service`
+   dengan approval admin.
+
+`reload_service` hanya tersedia untuk DNS dan Prometheus. Semua perubahan Real tetap
+membutuhkan approval, kecuali perangkat yang secara eksplisit diberi auto-approve
+untuk aksi yang memang diizinkan.
+
+---
+
+## 12. Backup dan rollback
+
+Buat backup sebelum pembaruan besar:
+
+```bash
+sudo install -d -o root -g root -m 0700 /root/jalatantra-backups
+sudo mariadb-dump -u root -p --databases jalatantra jalatantra_ops \
+  | gzip -9 > /root/jalatantra-backups/jalatantra-$(date -u +%Y%m%dT%H%M%SZ).sql.gz
+sudo tar -czf /root/jalatantra-backups/jalatantra-config-$(date -u +%Y%m%dT%H%M%SZ).tgz \
+  /etc/jalatantra /etc/jalatantra-deploy
+sudo chmod 0600 /root/jalatantra-backups/*
+```
+
+Simpan backup di lokasi terpisah yang aman. Arsip `/etc/jalatantra` dan
+`/etc/jalatantra-deploy` dapat memuat credential worker, vault, dan konfigurasi AI.
+
+Rollback source ke commit sebelumnya:
+
+```bash
+cd /opt/jalatantra-src
+sudo git log --oneline --decorate -10
+sudo git checkout COMMIT_YANG_SUDAH_DIVERIFIKASI
+```
+
+Lalu deploy ulang menggunakan inventory dan vault yang sama:
+
+```bash
+sudo ANSIBLE_ROLES_PATH=/opt/jalatantra-src/roles \
+  ansible-playbook \
+  -i /etc/jalatantra-deploy/hosts.yml \
+  playbooks/site.yml \
+  --limit localhost \
+  --tags jalatantra \
+  --ask-vault-pass
+```
+
+Skema database bersifat additif. Jangan melakukan downgrade dengan menghapus tabel
+atau menghapus data MariaDB secara manual.
+
+Kembali ke branch terbaru setelah rollback selesai dievaluasi:
+
+```bash
+cd /opt/jalatantra-src
+sudo git switch main
+sudo git pull --ff-only origin main
+```
+
+---
+
+## 13. Troubleshooting
+
+| Gejala | Pemeriksaan dan tindakan |
 |---|---|
-| Base URL | Endpoint Chat Completions, mis. `https://api.provider.com/v1` |
-| Kunci API | Kunci rahasia penyedia (disimpan di database, selalu termasking saat ditampilkan) |
-| Model ID | Nama model, mis. `qwen3.8-max` atau `deepseek-chat` |
-| Batas waktu / token | Nilai wajar: 20 detik, 600 token |
-
-Gunakan **Uji koneksi** untuk memastikan sebelum mengaktifkan, atau **Ambil daftar model**
-untuk memilih Model ID dari penyedia. Lalu centang **Aktifkan asisten AI** dan simpan.
-Kunci yang sudah tersimpan tidak akan ditampilkan kembali; kosongkan kolom untuk
-mempertahankannya.
-
-Catatan penting:
-
-- Penyedia harus kompatibel OpenAI (`POST {base_url}/chat/completions`).
-- Tanpa konfigurasi: `GET /api/ai/status` → `{"available": false}`, UI menyembunyikan
-  analisis, dan semua fungsi inti tetap berjalan.
-- Data yang dikirim hanya: nama/alamat/jenis/lokasi perangkat, teks insiden, hasil
-  pemeriksaan terakhir, riwayat pekerjaan, dan jejak audit perangkat itu. Tidak ada
-  kata sandi, token, atau isi konfigurasi rahasia.
-- Setiap perubahan pengaturan tercatat di audit sebagai `ai_settings_changed`, dan
-  setiap pemakaian sebagai `AI-Advisor incident_explained`,
-  `incident_followup_suggested`, atau `operational_question_answered`.
-- Permintaan AI dibatasi per akun untuk mencegah biaya tak disengaja. Hasil ringkasan
-  insiden yang sama di-cache singkat agar membuka ulang detail tidak selalu memanggil penyedia.
-- Pengalihan HTTP penyedia diblokir; ini mencegah kunci API terbawa ke alamat lain.
-- Untuk verifikasi tanpa biaya, arahkan Base URL ke provider tiruan lokal
-  (lihat docs/03 §3.8c).
-
-<details>
-<summary>Alternatif: konfigurasi lewat file (provisioning tanpa UI)</summary>
-
-Buat `/etc/jalatantra/ai.json` (0600/0640, jangan masukkan ke repo). Nilai di
-database (jika diisi lewat UI) selalu diprioritaskan di atas file ini.
-
-```bash
-sudo tee /etc/jalatantra/ai.json >/dev/null <<'JSON'
-{
-  "enabled": true,
-  "base_url": "https://provider-anda/v1",
-  "model": "nama-model",
-  "api_key": "ISI-KUNCI-DI-SINI",
-  "timeout": 20,
-  "max_tokens": 600
-}
-JSON
-sudo systemctl restart jalatantra
-```
-
-Deploy ulang tidak mengganti file yang sudah ada bila variabel provisioning AI kosong;
-pengaturan yang dibuat lewat UI juga tidak terpengaruh karena tersimpan di database.
-</details>
+| `git clone` gagal | Pastikan server dapat membuka `https://github.com`; periksa DNS, proxy, dan waktu sistem. |
+| Ansible tidak menemukan role | Jalankan dengan `ANSIBLE_ROLES_PATH=/opt/jalatantra-src/roles`. |
+| Collection `community.mysql` tidak ada | Jalankan `sudo ansible-galaxy collection install -r /opt/jalatantra-src/requirements.yml`. |
+| MariaDB menolak login saat rerun | Perbarui `mariadb_login_password` di vault agar sama dengan password root MariaDB saat ini. |
+| `/api/health` menghasilkan 503 | Periksa `sudo systemctl status mariadb jalatantra` dan `sudo journalctl -u jalatantra -n 100 --no-pager`. |
+| Worker tidak mengirim heartbeat | Periksa `sudo systemctl status jalatantra-worker` dan `sudo journalctl -u jalatantra-worker -n 100 --no-pager`. |
+| AI tidak dapat menjawab | Periksa Pengaturan AI melalui UI; aplikasi inti tetap berjalan tanpa AI. Pastikan lingkungan Demo/Real yang dipilih benar. |
+| Perangkat Real tidak dapat diperiksa | Pastikan alamat ada di `jalatantra_allowed_networks`, redeploy, lalu periksa rute dan firewall dari server. |
+| Otomasi Real ditolak | Pastikan alamat juga terdaftar di `jalatantra_managed_hosts` dan `jalatantra_automation_hosts`; mulai dengan audit atau diagnosis baca-saja. |
+| Tunnel SSH putus | Jalankan ulang perintah tunnel; portal tidak perlu dibuka ke jaringan untuk mengatasi masalah ini. |
 
 ---
 
-## 8. Backup, rollback, dan batas operasional
+## 14. Checklist selesai
 
-**Backup sebelum perubahan besar:**
-
-```bash
-sudo mysqldump -u root -p --databases jalatantra jalatantra_ops > /root/jalatantra-$(date +%F).sql
-sudo tar czf /root/etc-jalatantra-$(date +%F).tgz /etc/jalatantra
-```
-
-Simpan salinan di luar server. `/etc/jalatantra` berisi konfigurasi dan kredensial
-worker; perlakukan arsipnya sebagai rahasia (mode 0600).
-
-**Rollback aplikasi:** simpan salinan repository versi sebelumnya; jalankan ulang
-playbook dari salinan tersebut (`--tags jalatantra`). Skema database bersifat
-additif (`IF NOT EXISTS`); jangan menurunkan versi dengan menghapus tabel.
-Bila perubahan inventaris menyebabkan masalah, gunakan arsip perangkat di UI
-(soft-archive, riwayat tetap tersimpan) alih-alih menghapus baris database.
-
-**Batas yang perlu diterima:** worker mengklaim pekerjaan secara berurutan, tetapi
-pemeriksaan perangkat diproses paralel terbatas dan dipaginasi sehingga satu perangkat
-bermasalah tidak memotong seluruh putaran. Katalog otomasi mencakup audit, kumpulkan bukti
-sistem, diagnosis layanan, pastikan layanan aktif, restart, dan reload terbatas. Reload
-hanya tersedia untuk DNS/Prometheus, wajib approval, dan selalu diverifikasi ulang. Pekerjaan antrean kedaluwarsa setelah 30 menit,
-permintaan persetujuan setelah 7 hari; worker mengirim heartbeat dan membersihkan riwayat
-pemeriksaan >30 hari, pekerjaan >180 hari, serta audit >400 hari. Timeout Ansible tetap
-120 detik. Belum ada notifikasi ke kanal eksternal atau TLS terminasi bawaan; akses jarak
-jauh bergantung pada tunnel atau reverse proxy HTTPS yang dikelola operator.
-
----
-
-## 9. Troubleshooting cepat
-
-| Masalah | Penanganan |
-|---|---|
-| `dpkg was interrupted` saat apt | `sudo dpkg --configure -a && sudo apt-get -f install` |
-| Ansible mengabaikan ansible.cfg | Jalankan dari filesystem Linux (bukan `/mnt/e`), atau set `ANSIBLE_ROLES_PATH` dan `-i` eksplisit |
-| `Access denied for user 'root'` saat run ulang | `mariadb_login_password` di vault belum diperbarui ke kata sandi root saat ini |
-| Vault menolak frasa sandi | Pastikan `--ask-vault-pass`; jangan menyimpan frasa vault di file plaintext |
-| become gagal meski password benar | Periksa `ansible_become_pass` di vault; akun harus anggota sudo |
-| `/api/health` 503 | `systemctl status mariadb`; periksa socket `/run/mysqld/mysqld.sock`; `journalctl -u jalatantra -n 50` |
-| Pemeriksaan DNS perangkat real DOWN | Probe memakai `dns_probe_name` (default `ns1.<domain>`); bila resolver server tidak menunjuk BIND9 lokal, kondisi DOWN adalah jujur — arahkan resolver atau sesuaikan nama probe |
-| Persetujuan ditolak "target telah berubah" | Inventaris perangkat diedit setelah permintaan dibuat; batalkan dan ajukan ulang (perilaku pengaman) |
-| WSL tidak menjangkau subnet VPN | `.wslconfig` Windows: `[wsl2] networkingMode=mirrored`, lalu `wsl --shutdown`; atau pakai Jalur B |
-| Port 3080 sudah dipakai di server | Ubah `jalatantra_http_port` di host vars dan redeploy; sesuaikan nomor tunnel |
-
----
-
-## 10. Checklist akhir integrasi
-
-- [ ] VPN aktif; `Test-NetConnection 10.33.109.77 -Port 22` True
-- [ ] Kata sandi awal akun server diganti; kunci SSH deploy terpasang
-- [ ] `sudo -v` berhasil; `dpkg --audit` bersih
-- [ ] Vault dibuat; tidak ada rahasia di file plaintext atau argumen proses
-- [ ] Playbook selesai `failed=0`; run ulang idempoten
-- [ ] Tujuh layanan active; `/api/health` ok
-- [ ] Tunnel SSH hidup; UI terbuka di http://127.0.0.1:3080
-- [ ] Kata sandi admin JalaTantra diganti lewat UI
-- [ ] `check_jalatantra.py` lulus di server; uji browser lulus melalui tunnel
-- [ ] Backup database dan `/etc/jalatantra` taken dan tersimpan di luar server
-- [ ] Perangkat real tambahan (bila ada) terdaftar dan teruji baca-saja dahulu
-
-Setelah checklist ini hijau, server siap dipakai dan diuji mengikuti
-`03-panduan-testing-lengkap.md`.
+- [ ] Source berasal dari GitHub branch `main` dan `git status --short` kosong.
+- [ ] Inventory serta vault berada di `/etc/jalatantra-deploy`, bukan di repository.
+- [ ] Vault dan konfigurasi lokal hanya dapat dibaca root.
+- [ ] Syntax check Ansible selesai tanpa error.
+- [ ] Deploy selesai dengan `failed=0`.
+- [ ] MariaDB, Prometheus, Node Exporter, Grafana, BIND9, portal, dan worker berstatus `active`.
+- [ ] `curl http://127.0.0.1:3080/api/health` mengembalikan `{"ok":true}`.
+- [ ] Heartbeat `jalatantra-worker` tercatat pada tabel `service_state`.
+- [ ] Akses portal dilakukan melalui SSH tunnel.
+- [ ] Password admin portal telah diganti setelah login pertama.
+- [ ] Uji monitoring, unit, collector, dan integrasi selesai sesuai kebutuhan.
+- [ ] Backup database, konfigurasi aplikasi, dan konfigurasi deployment disimpan di luar server.
